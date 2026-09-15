@@ -8,6 +8,7 @@ from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.search_emails import SearchEmails
+from outlook_mac_mcp.application.top_senders import TopSenders
 from outlook_mac_mcp.infrastructure.graph.authentication import DeviceCodeAuthenticator
 from outlook_mac_mcp.infrastructure.graph.calendar_repository import GraphCalendarRepository
 from outlook_mac_mcp.infrastructure.graph.calendar_writer import GraphCalendarWriter
@@ -39,6 +40,7 @@ def build_use_cases(settings: Settings) -> UseCases:
         list_upcoming_events=ListUpcomingEvents(calendar, clock),
         list_emails=ListEmails(mail),
         count_emails=CountEmails(mail),
+        top_senders=TopSenders(mail),
         calendar_write=write,
     )
 

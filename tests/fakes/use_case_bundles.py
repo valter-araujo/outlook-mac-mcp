@@ -15,6 +15,7 @@ from outlook_mac_mcp.application.ports.calendar_writer import CalendarWriter
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.search_emails import SearchEmails
+from outlook_mac_mcp.application.top_senders import TopSenders
 from outlook_mac_mcp.interface.mcp.calendar_write_use_cases import CalendarWriteUseCases
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.fixed_clock import FixedClock
@@ -49,6 +50,7 @@ def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
         list_upcoming_events=bundle.list_upcoming_events,
         list_emails=bundle.list_emails,
         count_emails=bundle.count_emails,
+        top_senders=bundle.top_senders,
         calendar_write=write,
     )
 
@@ -62,4 +64,5 @@ def _bundle(mail: MailRepository, calendar: CalendarRepository, clock: Clock) ->
         list_upcoming_events=ListUpcomingEvents(calendar, clock),
         list_emails=ListEmails(mail),
         count_emails=CountEmails(mail),
+        top_senders=TopSenders(mail),
     )
