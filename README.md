@@ -115,7 +115,81 @@ uv run pytest
 
 ## Installation
 
-Coming with v1.
+### 1. Register the app in Microsoft Entra ID
+
+Follow the table under [Microsoft account and app registration](#microsoft-account-and-app-registration).
+Note the **Application (client) ID** — it is not a secret, but it identifies your
+registration and does not belong in this repository.
+
+### 2. Install
+
+```sh
+git clone https://github.com/valter-araujo/outlook-mac-mcp.git
+cd outlook-mac-mcp
+uv sync
+```
+
+### 3. Sign in once
+
+The MCP server never starts a sign-in of its own: the device-code flow blocks for
+minutes waiting for a browser, and a stdio server has nowhere to show the code,
+because stdout carries the MCP protocol. Authenticate out of band instead:
+
+```sh
+export OUTLOOK_MCP_CLIENT_ID=<your client id>
+uv run outlook-mac-mcp sign-in
+```
+
+The code and the URL are printed to stderr. Open the URL, enter the code, and approve
+the requested scopes. The resulting token is stored in the macOS Keychain under the
+service `outlook-mac-mcp`; it is never written to a file or an environment variable.
+
+Repeat this only when the refresh token expires or you revoke consent.
+
+### 4. Point Claude Desktop at the server
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "outlook-mac-mcp": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/outlook-mac-mcp", "run", "outlook-mac-mcp"],
+      "env": {
+        "OUTLOOK_MCP_CLIENT_ID": "<your client id>"
+      }
+    }
+  }
+}
+```
+
+Three things this configuration has to get right:
+
+- **`OUTLOOK_MCP_CLIENT_ID` must be in the `env` block.** Claude Desktop launches the
+  server as a GUI process, which does not inherit your shell environment: an `export` in
+  `~/.zshrc` is invisible to it. The `env` block is the only thing the server sees.
+- **Use an absolute path** in `--directory`. The launched process does not start in your
+  project directory.
+- **`uv` must be on the launcher's `PATH`,** which is likewise not your shell's. If the
+  server fails to start, replace `"command": "uv"` with the absolute path from
+  `which uv` (typically `~/.local/bin/uv`).
+
+Restart Claude Desktop. `list_unread_emails` should appear in the tool list.
+
+### Optional: log level
+
+`OUTLOOK_MCP_LOG_LEVEL` sets the verbosity (default `INFO`). Structured JSON logs go to
+stderr and carry metadata only — tool name, correlation id, duration, outcome and item
+count, never subjects, addresses or bodies. Add it to the same `env` block.
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| Tool fails with "no usable cached credential" | Step 3 was not completed, or the token was revoked. Run `sign-in` again. |
+| Server fails to start with `ConfigurationError` | `OUTLOOK_MCP_CLIENT_ID` is missing from the `env` block. |
+| Server does not appear in Claude Desktop | `uv` is not on the launcher's `PATH`; use an absolute path for `command`. |
 
 ## License
 
