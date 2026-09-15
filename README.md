@@ -39,18 +39,19 @@ automation is unavailable. This was the deciding factor.
 | Supported account types | **"Accounts in any organizational directory and personal Microsoft accounts"** |
 | Authentication | Device-code flow (MSAL, public client, **no client secret**) |
 | Authority | `https://login.microsoftonline.com/consumers` |
-| Scopes consented by v1 | `Mail.Read`, `Calendars.Read`, `Contacts.Read`, `offline_access`, `User.Read` |
-| Admin consent | Not required — all v1 scopes are user-consentable |
+| Scopes requested by default | `Mail.Read`, `Calendars.Read`, `Contacts.Read`, `offline_access`, `User.Read` |
+| Scope added by `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` | `Calendars.ReadWrite` (see [Optional: calendar write](#optional-calendar-write)) |
+| Admin consent | Not required — every scope above is user-consentable |
 
 `offline_access`, `openid` and `profile` are reserved scopes: MSAL appends them
 to every request on its own and raises if they are passed explicitly. They are
 consented at the registration but never appear in the list the code asks for —
 that consent is what yields the refresh token behind the Keychain cache.
 
-The app registration may list broader permissions (e.g. `Calendars.ReadWrite`)
-than the server requests. The token only ever carries the scopes the current
-version asks for; write scopes enter the code in later versions, behind a
-config flag that is off by default, and trigger a new consent prompt.
+The app registration may list broader permissions than the server requests. The
+token only ever carries the scopes the running configuration asks for: the write
+scope is requested only behind a config flag that is off by default, and turning it
+on triggers a new sign-in and consent prompt.
 
 ### Not required
 
@@ -213,6 +214,27 @@ override it, add `OUTLOOK_MCP_TIMEZONE` with an IANA name (for example
 `America/Sao_Paulo` or `Europe/Lisbon`) to the same `env` block. The name is validated
 at startup: an unknown one stops both the server and `sign-in` with a
 `ConfigurationError`. The resolved zone is logged at startup.
+
+### Optional: calendar write
+
+Off by default. Setting `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` in the `env` block
+does two things: the server requests the `Calendars.ReadWrite` scope in addition to the
+read scopes, and it registers the write tools. Accepted values are `true`, `false`,
+`1` and `0`; anything else stops the server with a `ConfigurationError`.
+
+Because the scope set changes, the token already in the Keychain no longer satisfies
+it and every tool fails with "no usable cached credential" until you sign in again.
+Run the sign-in with the flag set in the same shell, and approve the new consent
+prompt, which now lists calendar write access:
+
+```sh
+export OUTLOOK_MCP_CLIENT_ID=<your client id>
+export OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true
+uv run outlook-mac-mcp sign-in
+```
+
+Turning the flag off again does not shrink the consent already granted; revoke it at
+<https://account.live.com/consent/Manage> if you want the write permission gone.
 
 ### Troubleshooting
 

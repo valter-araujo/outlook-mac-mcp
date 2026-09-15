@@ -17,7 +17,8 @@ CONSUMERS_AUTHORITY = "https://login.microsoftonline.com/consumers"
 # appends them itself and rejects them when requested explicitly. The Entra
 # registration still consents to offline_access, which is what allows the refresh
 # token that keeps this cache useful between runs.
-SCOPES: tuple[str, ...] = ("Mail.Read", "Calendars.Read", "Contacts.Read", "User.Read")
+READ_SCOPES: tuple[str, ...] = ("Mail.Read", "Calendars.Read", "Contacts.Read", "User.Read")
+CALENDAR_WRITE_SCOPE = "Calendars.ReadWrite"
 
 SIGN_IN_REQUIRED_MESSAGE = "no usable cached credential; complete the device-code sign-in first"
 
@@ -58,9 +59,15 @@ class DeviceCodeAuthenticator:
     the cache and fails fast; `sign_in` is a deliberate out-of-band step.
     """
 
-    def __init__(self, application: MsalApplication, token_cache: TokenCache) -> None:
+    def __init__(
+        self,
+        application: MsalApplication,
+        token_cache: TokenCache,
+        scopes: Sequence[str] = READ_SCOPES,
+    ) -> None:
         self._application = application
         self._token_cache = token_cache
+        self._scopes = list(scopes)
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "DeviceCodeAuthenticator":
@@ -70,20 +77,20 @@ class DeviceCodeAuthenticator:
             authority=CONSUMERS_AUTHORITY,
             token_cache=token_cache.msal_cache,
         )
-        return cls(application, token_cache)
+        return cls(application, token_cache, required_scopes(settings))
 
     def get_access_token(self) -> str:
         account = self._cached_account()
         if account is None:
             raise NotAuthenticatedError(SIGN_IN_REQUIRED_MESSAGE)
-        response = self._application.acquire_token_silent(list(SCOPES), account)
+        response = self._application.acquire_token_silent(self._scopes, account)
         self._token_cache.save_if_changed()
         if response is None:
             raise NotAuthenticatedError(SIGN_IN_REQUIRED_MESSAGE)
         return _read_access_token(response)
 
     def sign_in(self, show_prompt: Callable[[DeviceCodePrompt], None]) -> None:
-        flow = self._application.initiate_device_flow(list(SCOPES))
+        flow = self._application.initiate_device_flow(self._scopes)
         show_prompt(_read_device_code_prompt(flow))
         response = self._application.acquire_token_by_device_flow(flow)
         self._token_cache.save_if_changed()
@@ -94,6 +101,18 @@ class DeviceCodeAuthenticator:
         if not accounts:
             return None
         return accounts[0]
+
+
+def required_scopes(settings: Settings) -> tuple[str, ...]:
+    """The write scope enters the request only behind the flag.
+
+    A cached token carries the scopes it was issued for, so widening the set makes the
+    silent acquire fail and forces a fresh sign-in and consent; that is the intended
+    cost of turning writes on, not a bug to smooth over.
+    """
+    if settings.calendar_write_enabled:
+        return (*READ_SCOPES, CALENDAR_WRITE_SCOPE)
+    return READ_SCOPES
 
 
 def _raise_for_error(response: Mapping[str, Any]) -> None:

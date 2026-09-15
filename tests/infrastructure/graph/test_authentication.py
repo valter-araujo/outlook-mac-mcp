@@ -3,19 +3,22 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from outlook_mac_mcp.infrastructure.graph.authentication import (
-    SCOPES,
+    CALENDAR_WRITE_SCOPE,
+    READ_SCOPES,
     DeviceCodeAuthenticator,
     DeviceCodePrompt,
+    required_scopes,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import (
     AuthenticationError,
     NotAuthenticatedError,
 )
-from outlook_mac_mcp.infrastructure.settings import load_settings
+from outlook_mac_mcp.infrastructure.settings import Settings, load_settings
 
 AN_ACCOUNT = {"username": "someone@example.com"}
 RESERVED_SCOPES = ("offline_access", "openid", "profile")
@@ -106,9 +109,48 @@ def test_persists_the_cache_after_a_silent_refresh() -> None:
     assert token_cache.saves == 1
 
 
+def settings_with_calendar_write(enabled: bool) -> Settings:
+    return Settings(
+        client_id="a-client-id", timezone=ZoneInfo("UTC"), calendar_write_enabled=enabled
+    )
+
+
 @pytest.mark.parametrize("reserved_scope", RESERVED_SCOPES)
 def test_never_requests_scopes_that_msal_reserves(reserved_scope: str) -> None:
-    assert reserved_scope not in SCOPES
+    assert reserved_scope not in required_scopes(settings_with_calendar_write(True))
+
+
+def test_requests_only_read_scopes_when_calendar_write_is_off() -> None:
+    scopes = required_scopes(settings_with_calendar_write(False))
+
+    assert scopes == READ_SCOPES
+    assert CALENDAR_WRITE_SCOPE not in scopes
+
+
+def test_adds_the_calendar_write_scope_when_the_flag_is_on() -> None:
+    scopes = required_scopes(settings_with_calendar_write(True))
+
+    assert set(READ_SCOPES) < set(scopes)
+    assert CALENDAR_WRITE_SCOPE in scopes
+
+
+def test_asks_the_identity_platform_for_exactly_the_scopes_it_was_given() -> None:
+    application = FakeMsalApplication(accounts=[AN_ACCOUNT], silent_response={"access_token": "t"})
+    authenticator = DeviceCodeAuthenticator(
+        application, FakeTokenCache(), (*READ_SCOPES, CALENDAR_WRITE_SCOPE)
+    )
+
+    authenticator.get_access_token()
+
+    assert application.requested_scopes == [*READ_SCOPES, CALENDAR_WRITE_SCOPE]
+
+
+def test_asks_for_read_scopes_only_by_default() -> None:
+    application = FakeMsalApplication(accounts=[AN_ACCOUNT], silent_response={"access_token": "t"})
+
+    DeviceCodeAuthenticator(application, FakeTokenCache()).get_access_token()
+
+    assert application.requested_scopes == list(READ_SCOPES)
 
 
 def test_sign_in_shows_the_device_code_prompt() -> None:
