@@ -9,7 +9,7 @@ from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.interface.mcp.email_detail_view import EmailDetailView
-from outlook_mac_mcp.interface.mcp.email_view import EmailView
+from outlook_mac_mcp.interface.mcp.email_page_view import EmailPageView
 from outlook_mac_mcp.interface.mcp.get_email_input import EmailId, GetEmailInput
 from outlook_mac_mcp.interface.mcp.list_unread_emails_input import (
     Folder,
@@ -27,24 +27,40 @@ from outlook_mac_mcp.interface.mcp.search_emails_input import (
 
 SERVER_NAME = "outlook-mac-mcp"
 SERVER_VERSION = "0.1.0"
+
+
+def _totals_guidance(narrowing_advice: str) -> str:
+    """The one wording every listing tool uses to make the client report its totals.
+
+    A model that sees a full page and no total tends to treat it as the whole folder,
+    so the description spells out both the sentence to say and what to suggest next.
+    """
+    return (
+        "The output carries returned, total and total_is_exact. Always tell the user "
+        '"showing N of M", where N is returned and M is total, or "showing N of at least '
+        'M" when total_is_exact is false. When M exceeds N, say that more exist than '
+        f"were shown and suggest narrowing the scope: {narrowing_advice}. Never conclude "
+        "that something is absent from a page that does not hold every match."
+    )
+
+
 LIST_UNREAD_EMAILS_TOOL = "list_unread_emails"
 LIST_UNREAD_EMAILS_DESCRIPTION = (
     "List unread emails from a mailbox folder, newest first. "
-    "Returns metadata and a short preview, never the full body."
+    "Returns metadata and a short preview, never the full body. "
+    + _totals_guidance("a higher limit, or a folder with less unread mail")
 )
 SEARCH_EMAILS_TOOL = "search_emails"
 SEARCH_EMAILS_DESCRIPTION = (
     "Search a mailbox folder for emails matching a term. Results are ranked by "
     "relevance, NOT by date: the newest matching email is not necessarily first, and "
     "this list is not a chronological view of the folder. "
-    "At most `limit` results are returned and no total match count is available, so a "
-    "full page means there are probably more matches you have not seen, never that you "
-    "have seen them all: do not conclude anything is absent from a full page. "
     "Use scope to narrow the match: the default any also reads the message body, which "
     "makes newsletters that merely mention the term match. "
     "The term is matched as literal text, so query operators written into it are "
     "searched for, not obeyed. "
-    "Returns metadata and a short preview; use get_email for a full body."
+    "Returns metadata and a short preview; use get_email for a full body. "
+    + _totals_guidance("a more specific term, the subject or sender scope, or another folder")
 )
 GET_EMAIL_TOOL = "get_email"
 GET_EMAIL_DESCRIPTION = (
@@ -73,21 +89,21 @@ def _register_list_unread_emails(server: MCPServer, use_case: ListUnreadEmails) 
     async def list_unread_emails(
         folder: Folder = FolderName.INBOX,
         limit: Limit = DEFAULT_LIMIT,
-    ) -> list[EmailView]:
+    ) -> EmailPageView:
         try:
             return _translate(use_case, ListUnreadEmailsInput(folder=folder, limit=limit))
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
 
 
-def _translate(use_case: ListUnreadEmails, model: ListUnreadEmailsInput) -> list[EmailView]:
+def _translate(use_case: ListUnreadEmails, model: ListUnreadEmailsInput) -> EmailPageView:
     """Observe from inside the error translation, so the log names the project error type
     rather than the ToolError it is about to become.
     """
     with observed_tool_call(LIST_UNREAD_EMAILS_TOOL) as outcome:
         page = use_case.execute(model.to_request())
         outcome.item_count = len(page.items)
-        return [EmailView.from_email(email) for email in page.items]
+        return EmailPageView.from_page(page)
 
 
 def _register_get_email(server: MCPServer, use_case: GetEmail) -> None:
@@ -113,7 +129,7 @@ def _register_search_emails(server: MCPServer, use_case: SearchEmails) -> None:
         folder: SearchFolder = FolderName.INBOX,
         scope: Scope = SearchScope.ANY,
         limit: SearchLimit = DEFAULT_LIMIT,
-    ) -> list[EmailView]:
+    ) -> EmailPageView:
         try:
             return _translate_search(
                 use_case,
@@ -123,8 +139,8 @@ def _register_search_emails(server: MCPServer, use_case: SearchEmails) -> None:
             raise ToolError(str(error)) from error
 
 
-def _translate_search(use_case: SearchEmails, model: SearchEmailsInput) -> list[EmailView]:
+def _translate_search(use_case: SearchEmails, model: SearchEmailsInput) -> EmailPageView:
     with observed_tool_call(SEARCH_EMAILS_TOOL) as outcome:
         page = use_case.execute(model.to_request())
         outcome.item_count = len(page.items)
-        return [EmailView.from_email(email) for email in page.items]
+        return EmailPageView.from_page(page)
