@@ -3,10 +3,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from outlook_mac_mcp.application.limits import DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT
-from outlook_mac_mcp.application.search_emails import (
+from outlook_mac_mcp.application.search_emails import SearchEmails
+from outlook_mac_mcp.application.search_emails_request import (
     MAX_TERM_LENGTH,
     MIN_TERM_LENGTH,
-    SearchEmails,
     SearchEmailsRequest,
 )
 from outlook_mac_mcp.domain.email import Email

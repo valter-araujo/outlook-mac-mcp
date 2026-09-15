@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.folder_name import FolderName
@@ -17,9 +18,9 @@ class MailRepository(Protocol):
         """
         ...
 
-    def search(self, folder: FolderName, term: str, limit: int) -> tuple[Email, ...]:
-        """Return up to `limit` emails in `folder` matching `term`, in relevance order.
+    def search(self, request: SearchEmailsRequest) -> tuple[Email, ...]:
+        """Return the emails matching `request`, in relevance order.
 
-        `term` is matched as literal text; it never carries query operators.
+        The term is matched as literal text; it never carries query operators.
         """
         ...

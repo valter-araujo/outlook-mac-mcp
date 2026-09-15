@@ -7,6 +7,7 @@ from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.interface.mcp.email_detail_view import EmailDetailView
 from outlook_mac_mcp.interface.mcp.email_view import EmailView
 from outlook_mac_mcp.interface.mcp.get_email_input import EmailId, GetEmailInput
@@ -17,6 +18,7 @@ from outlook_mac_mcp.interface.mcp.list_unread_emails_input import (
 )
 from outlook_mac_mcp.interface.mcp.observability import observed_tool_call
 from outlook_mac_mcp.interface.mcp.search_emails_input import (
+    Scope,
     SearchEmailsInput,
     SearchFolder,
     SearchLimit,
@@ -34,8 +36,14 @@ SEARCH_EMAILS_TOOL = "search_emails"
 SEARCH_EMAILS_DESCRIPTION = (
     "Search a mailbox folder for emails matching a term. Results are ranked by "
     "relevance, NOT by date: the newest matching email is not necessarily first, and "
-    "this list is not a chronological view of the folder. The term is matched as "
-    "literal text, so query operators written into it are searched for, not obeyed. "
+    "this list is not a chronological view of the folder. "
+    "At most `limit` results are returned and no total match count is available, so a "
+    "full page means there are probably more matches you have not seen, never that you "
+    "have seen them all: do not conclude anything is absent from a full page. "
+    "Use scope to narrow the match: the default any also reads the message body, which "
+    "makes newsletters that merely mention the term match. "
+    "The term is matched as literal text, so query operators written into it are "
+    "searched for, not obeyed. "
     "Returns metadata and a short preview; use get_email for a full body."
 )
 GET_EMAIL_TOOL = "get_email"
@@ -103,11 +111,13 @@ def _register_search_emails(server: MCPServer, use_case: SearchEmails) -> None:
     async def search_emails(
         term: Term,
         folder: SearchFolder = FolderName.INBOX,
+        scope: Scope = SearchScope.ANY,
         limit: SearchLimit = DEFAULT_LIMIT,
     ) -> list[EmailView]:
         try:
             return _translate_search(
-                use_case, SearchEmailsInput(term=term, folder=folder, limit=limit)
+                use_case,
+                SearchEmailsInput(term=term, folder=folder, scope=scope, limit=limit),
             )
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
