@@ -22,6 +22,16 @@ class InMemoryMailRepository:
         newest_first = sorted(unread, key=lambda email: email.received_at, reverse=True)
         return tuple(newest_first[:limit])
 
+    def search(self, folder: FolderName, term: str, limit: int) -> tuple[Email, ...]:
+        """Insertion order, deliberately not date order: the port promises relevance."""
+        needle = term.casefold()
+        matches = [
+            email
+            for email in self._emails[folder]
+            if needle in email.subject.casefold() or needle in email.preview.casefold()
+        ]
+        return tuple(matches[:limit])
+
     def get_by_id(self, email_id: str) -> EmailDetail:
         for emails in self._emails.values():
             for email in emails:

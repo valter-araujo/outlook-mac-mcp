@@ -16,3 +16,10 @@ class MailRepository(Protocol):
         Raises EmailNotFoundError when the mailbox holds no such message.
         """
         ...
+
+    def search(self, folder: FolderName, term: str, limit: int) -> tuple[Email, ...]:
+        """Return up to `limit` emails in `folder` matching `term`, in relevance order.
+
+        `term` is matched as literal text; it never carries query operators.
+        """
+        ...

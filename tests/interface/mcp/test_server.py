@@ -37,6 +37,9 @@ class FailingMailRepository:
     def get_by_id(self, email_id: str) -> EmailDetail:
         raise self._error
 
+    def search(self, folder: FolderName, term: str, limit: int) -> tuple[Email, ...]:
+        raise self._error
+
 
 def make_email(email_id: str, *, minutes_ago: int = 0) -> Email:
     return Email(

@@ -271,3 +271,82 @@ def test_leaves_other_bad_requests_as_graph_errors(repository: GraphMailReposito
 
     with pytest.raises(GraphRequestError):
         repository.get_by_id(AN_ID)
+
+
+@respx.mock
+def test_search_sends_the_term_as_a_quoted_phrase(repository: GraphMailRepository) -> None:
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    repository.search(FolderName.INBOX, "quarterly review", limit=20)
+
+    assert dict(route.calls.last.request.url.params)["$search"] == '"quarterly review"'
+
+
+@respx.mock
+def test_search_never_sends_an_orderby(repository: GraphMailRepository) -> None:
+    """Graph rejects $orderby alongside $search, so relevance order is not negotiable."""
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    repository.search(FolderName.INBOX, "deck", limit=20)
+
+    assert "$orderby" not in dict(route.calls.last.request.url.params)
+
+
+@respx.mock
+def test_search_bounds_the_page_with_top(repository: GraphMailRepository) -> None:
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    repository.search(FolderName.INBOX, "deck", limit=7)
+
+    assert dict(route.calls.last.request.url.params)["$top"] == "7"
+
+
+@respx.mock
+def test_search_reads_the_requested_folder(repository: GraphMailRepository) -> None:
+    archive = respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    repository.search(FolderName.ARCHIVE, "deck", limit=20)
+
+    assert archive.call_count == 1
+
+
+@respx.mock
+def test_search_sends_an_operator_like_term_as_literal_text(
+    repository: GraphMailRepository,
+) -> None:
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    repository.search(FolderName.INBOX, "deck AND from:ceo@example.com", limit=20)
+
+    sent = dict(route.calls.last.request.url.params)["$search"]
+    assert sent == '"deck AND from:ceo@example.com"'
+
+
+@respx.mock
+def test_search_escapes_a_term_that_tries_to_close_the_phrase(
+    repository: GraphMailRepository,
+) -> None:
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    repository.search(FolderName.INBOX, 'deck" AND from:ceo@example.com "', limit=20)
+
+    sent = dict(route.calls.last.request.url.params)["$search"]
+    assert sent == '"deck\\" AND from:ceo@example.com \\""'
+
+
+@respx.mock
+def test_search_maps_the_results(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(200, json={"value": [graph_message("found")]})
+    )
+
+    result = repository.search(FolderName.INBOX, "deck", limit=20)
+
+    assert [email.id for email in result] == ["found"]
+
+
+@respx.mock
+def test_search_returns_empty_when_nothing_matches(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    assert repository.search(FolderName.INBOX, "deck", limit=20) == ()

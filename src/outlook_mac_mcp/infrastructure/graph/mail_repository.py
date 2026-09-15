@@ -14,6 +14,7 @@ from outlook_mac_mcp.infrastructure.graph.email_mapper import (
     to_email_detail,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
+from outlook_mac_mcp.infrastructure.graph.search_query import to_literal_phrase
 
 UNREAD_FILTER = "isRead eq false"
 NEWEST_FIRST_ORDER = "receivedDateTime desc"
@@ -74,6 +75,22 @@ class GraphMailRepository:
                 raise EmailNotFoundError(f"no email with id {email_id}") from error
             raise
         return to_email_detail(payload)
+
+    def search(self, folder: FolderName, term: str, limit: int) -> tuple[Email, ...]:
+        """No $orderby: Graph rejects it alongside $search, so results are relevance-ranked.
+
+        The term is sent as a quoted KQL phrase, so text that reads like a query — `from:`,
+        `AND`, a stray colon — is searched for rather than executed.
+        """
+        payload = self._client.get(
+            f"/me/mailFolders/{folder.value}/messages",
+            {
+                "$search": to_literal_phrase(term),
+                "$top": limit,
+                "$select": ",".join(MESSAGE_FIELDS),
+            },
+        )
+        return tuple(to_email(message) for message in _read_messages(payload))
 
 
 def _read_messages(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
