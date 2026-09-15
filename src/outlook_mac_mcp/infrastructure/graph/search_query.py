@@ -1,3 +1,30 @@
+r"""Building the Graph $search value, and why it is shaped the way it is.
+
+Live check against Microsoft Graph on 2026-09-14, personal Outlook.com mailbox, inbox,
+$top=100. The positive control is `from:donotreply@cargill.com`, which matches exactly
+one message: a term carrying that operator returns one result if the operator ran, and
+none if the term was read as text.
+
+    "Cargill"                                        26 hits
+    "Cargill AND from:donotreply@cargill.com"         1 hit    operators executed
+    "\"Cargill AND from:donotreply@cargill.com\""     0 hits   literal, as intended
+    subject:"Cargill"                                 400      BadRequest
+    "subject:\"Cargill\""                             5 hits   restriction applied
+    "\"path\\\""                                    100 hits   phrase boundary lost
+
+Three conclusions, none of which the unit tests could have reached, because asserting
+the bytes we send says nothing about how Graph parses them:
+
+1. The whole $search value is one OData string with KQL parsed inside it, so the outer
+   quotes are the string delimiter and not a phrase delimiter. A singly quoted term has
+   its operators executed.
+2. The term is literal only inside its own nested phrase, and a property restriction
+   belongs inside that same string. Placing the property outside is rejected with 400.
+3. Escaping cannot be relied on to keep the phrase closed: a term ending in a backslash
+   lost the phrase boundary and matched the whole mailbox, returning a full page. Hence
+   the refusal in `_reject_unquotable` rather than an escape.
+"""
+
 from outlook_mac_mcp.application.search_emails_request import (
     UNSUPPORTED_TERM_CHARACTERS,
 )
@@ -13,19 +40,14 @@ KQL_PROPERTY_BY_SCOPE = {
 
 
 def to_search_query(term: str, scope: SearchScope) -> str:
-    """Build the $search value: a nested KQL phrase, optionally restricted to a property.
+    r"""Build the $search value: a nested KQL phrase, optionally restricted to a property.
 
-    Graph reads the whole $search value as one OData string and parses KQL *inside* it,
-    so the outer quotes are the string delimiter, not a phrase delimiter. Sending
-    `"deck AND from:x"` therefore executes the operators; the term is only literal inside
-    its own escaped phrase, `"\\"deck AND from:x\\""`. Verified against the live API: the
-    first form returns the filtered result, the second returns none.
+    The outer quotes are the OData string; the inner \" pair is the KQL phrase that makes
+    the term literal. A property restriction goes inside the same string. See the module
+    docstring for the measurements behind each of those.
 
-    A property restriction goes inside the same string, as `"subject:\\"deck\\""`. Placing
-    it outside, as `subject:"deck"`, is rejected by Graph with 400.
-
-    The term is guarded here as well as in the request, because this is the last point
-    before the wire and the quoting above is only sound for a term that cannot close it.
+    The term is guarded here as well as in the request because this is the last point
+    before the wire, and the quoting is only sound for a term that cannot close it.
     """
     _reject_unquotable(term)
     phrase = f'\\"{term}\\"'
@@ -35,5 +57,11 @@ def to_search_query(term: str, scope: SearchScope) -> str:
 
 
 def _reject_unquotable(term: str) -> None:
+    """Refuse rather than escape: a trailing backslash loses the phrase boundary.
+
+    A term ending in a backslash came back with a full page of results against the live
+    API, meaning the phrase never closed and the query matched the whole mailbox. A
+    quoting scheme that can lose its own boundary cannot carry a security property.
+    """
     if any(character in term for character in UNSUPPORTED_TERM_CHARACTERS):
         raise InvalidRequestError("term must not contain a double quote or a backslash")
