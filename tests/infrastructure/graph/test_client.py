@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 
 import httpx
@@ -240,3 +241,50 @@ def test_raises_when_a_followed_page_fails(client: GraphClient) -> None:
 
     with pytest.raises(GraphRequestError):
         client.follow(NEXT_LINK)
+
+
+EVENTS_PATH = "/me/events"
+EVENTS_URL = f"{GRAPH_BASE_URL}{EVENTS_PATH}"
+
+
+@respx.mock
+def test_posts_the_body_as_json(client: GraphClient) -> None:
+    route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json={"id": "new"}))
+
+    payload = client.post(EVENTS_PATH, {"subject": "Planning"})
+
+    request = route.calls.last.request
+    assert request.headers["Content-Type"] == "application/json"
+    assert json.loads(request.content) == {"subject": "Planning"}
+    assert payload == {"id": "new"}
+
+
+@respx.mock
+def test_sends_the_bearer_token_and_extra_headers_when_posting(client: GraphClient) -> None:
+    route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json={}))
+
+    client.post(EVENTS_PATH, {}, {"Prefer": 'outlook.timezone="UTC"'})
+
+    request = route.calls.last.request
+    assert request.headers["Authorization"] == "Bearer a-token"
+    assert request.headers["Prefer"] == 'outlook.timezone="UTC"'
+
+
+@respx.mock
+def test_refuses_to_post_to_an_absolute_url(client: GraphClient) -> None:
+    route = respx.post(ANOTHER_HOST_URL).mock(return_value=httpx.Response(201, json={}))
+
+    with pytest.raises(UnsupportedHostError):
+        client.post(ANOTHER_HOST_URL, {})
+
+    assert route.call_count == 0
+
+
+@respx.mock
+def test_raises_with_the_error_code_when_a_post_is_rejected(client: GraphClient) -> None:
+    respx.post(EVENTS_URL).mock(
+        return_value=httpx.Response(400, json={"error": {"code": "ErrorInvalidPropertyRequest"}})
+    )
+
+    with pytest.raises(GraphRequestError, match="ErrorInvalidPropertyRequest"):
+        client.post(EVENTS_PATH, {})
