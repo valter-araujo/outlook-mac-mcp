@@ -8,13 +8,13 @@ from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError
 from outlook_mac_mcp.interface.mcp.observability import (
     DEFAULT_LOG_LEVEL,
     LOG_LEVEL_ENV_VAR,
-    LOGGER_NAME,
     STARTUP_EVENT,
     TOOL_CALL_EVENT,
     configure_logging,
     observed_tool_call,
     record_startup,
 )
+from outlook_mac_mcp.logger import LOGGER_NAME
 
 A_TOOL = "list_unread_emails"
 SECRET_MESSAGE = "mailbox of ceo@example.com held subject 'Board pay'"
