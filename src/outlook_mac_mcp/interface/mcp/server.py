@@ -38,6 +38,9 @@ LIST_UNREAD_EMAILS_TOOL = "list_unread_emails"
 LIST_UNREAD_EMAILS_DESCRIPTION = (
     "List unread emails from a mailbox folder, newest first. "
     "Returns metadata and a short preview, never the full body. "
+    "It CANNOT answer questions about the folder as a whole: it sees unread mail only, so "
+    "it cannot tell how many emails the folder holds, how far back it goes, or when the "
+    "earliest email arrived. For those use list_emails with sort=oldest, or count_emails. "
     + totals_guidance("a higher limit, or a folder with less unread mail")
 )
 SEARCH_EMAILS_TOOL = "search_emails"
@@ -50,6 +53,10 @@ SEARCH_EMAILS_DESCRIPTION = (
     "The term is matched as literal text, so query operators written into it are "
     "searched for, not obeyed. "
     "Returns metadata and a short preview; use get_email for a full body. "
+    "Search results are relevance-ranked and NOT a representative sample of the folder: "
+    "do not infer a total, a date range, an earliest or latest email, or how far back the "
+    "folder goes from them. To answer how many or how far back, use count_emails or "
+    "list_emails with sort=oldest, which filter by date and count exactly. "
     + totals_guidance("a more specific term, the subject or sender scope, or another folder")
 )
 GET_EMAIL_TOOL = "get_email"
