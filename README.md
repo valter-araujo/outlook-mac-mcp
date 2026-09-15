@@ -42,8 +42,13 @@ automation is unavailable. This was the deciding factor.
 | Supported account types | **"Accounts in any organizational directory and personal Microsoft accounts"** |
 | Authentication | Device-code flow (MSAL, public client, **no client secret**) |
 | Authority | `https://login.microsoftonline.com/consumers` |
-| Scopes requested by v1 | `Mail.Read`, `Calendars.Read`, `Contacts.Read`, `offline_access`, `User.Read` |
+| Scopes consented by v1 | `Mail.Read`, `Calendars.Read`, `Contacts.Read`, `offline_access`, `User.Read` |
 | Admin consent | Not required — all v1 scopes are user-consentable |
+
+`offline_access`, `openid` and `profile` are reserved scopes: MSAL appends them
+to every request on its own and raises if they are passed explicitly. They are
+consented at the registration but never appear in the list the code asks for —
+that consent is what yields the refresh token behind the Keychain cache.
 
 The app registration may list broader permissions (e.g. `Calendars.ReadWrite`)
 than the server requests. The token only ever carries the scopes the current
