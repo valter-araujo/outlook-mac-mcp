@@ -15,6 +15,7 @@ from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.interface.mcp.observability import configure_logging
 from outlook_mac_mcp.interface.mcp.server import GET_EMAIL_TOOL, build_server
+from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 
 pytestmark = pytest.mark.anyio
@@ -39,7 +40,7 @@ def server_holding(body: str) -> MCPServer:
     repository = InMemoryMailRepository()
     repository.add(FolderName.INBOX, AN_EMAIL, body)
     return build_server(
-        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
     )
 
 

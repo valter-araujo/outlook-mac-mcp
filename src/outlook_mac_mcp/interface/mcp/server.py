@@ -24,6 +24,7 @@ from outlook_mac_mcp.interface.mcp.search_emails_input import (
     SearchLimit,
     Term,
 )
+from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 
 SERVER_NAME = "outlook-mac-mcp"
 SERVER_VERSION = "0.1.0"
@@ -72,15 +73,11 @@ GET_EMAIL_DESCRIPTION = (
 )
 
 
-def build_server(
-    list_unread_emails: ListUnreadEmails,
-    search_emails: SearchEmails,
-    get_email: GetEmail,
-) -> MCPServer:
+def build_server(use_cases: UseCases) -> MCPServer:
     server = MCPServer(name=SERVER_NAME, version=SERVER_VERSION)
-    _register_list_unread_emails(server, list_unread_emails)
-    _register_search_emails(server, search_emails)
-    _register_get_email(server, get_email)
+    _register_list_unread_emails(server, use_cases.list_unread_emails)
+    _register_search_emails(server, use_cases.search_emails)
+    _register_get_email(server, use_cases.get_email)
     return server
 
 

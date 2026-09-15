@@ -20,6 +20,7 @@ from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.infrastructure.graph.errors import NotAuthenticatedError
 from outlook_mac_mcp.interface.mcp.observability import configure_logging
 from outlook_mac_mcp.interface.mcp.server import LIST_UNREAD_EMAILS_TOOL, build_server
+from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 
 pytestmark = pytest.mark.anyio
@@ -61,14 +62,14 @@ def server_with(*emails: Email) -> MCPServer:
     for email in emails:
         repository.add(FolderName.INBOX, email)
     return build_server(
-        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
     )
 
 
 def server_failing_with(error: Exception) -> MCPServer:
     repository = FailingMailRepository(error)
     return build_server(
-        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
     )
 
 
@@ -138,7 +139,7 @@ async def test_passes_the_folder_and_limit_through_to_the_use_case() -> None:
     repository.add(FolderName.ARCHIVE, make_email("archived"))
     repository.add(FolderName.INBOX, make_email("inboxed"))
     server = build_server(
-        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
     )
 
     items = await call_tool(server, {"folder": "archive", "limit": 1})

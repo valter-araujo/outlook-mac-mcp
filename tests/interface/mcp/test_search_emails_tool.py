@@ -22,6 +22,7 @@ from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.interface.mcp.server import SEARCH_EMAILS_TOOL, build_server
+from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 
 pytestmark = pytest.mark.anyio
@@ -70,7 +71,7 @@ def server_with(*emails: Email) -> MCPServer:
     for email in emails:
         repository.add(FolderName.INBOX, email)
     return build_server(
-        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
     )
 
 
@@ -141,7 +142,7 @@ async def test_searches_the_requested_folder() -> None:
     repository.add(FolderName.INBOX, make_email("inboxed", subject="deck"))
     repository.add(FolderName.ARCHIVE, make_email("archived", subject="deck"))
     server = build_server(
-        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
     )
 
     items = await call_search(server, {"term": "deck", "folder": "archive"})
@@ -174,7 +175,7 @@ async def test_reports_how_many_were_returned_out_of_how_many_match() -> None:
 async def test_passes_an_inexact_total_through_as_a_lower_bound() -> None:
     repository = LowerBoundMailRepository()
     server = build_server(
-        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
     )
 
     page = await search_page(server, {"term": "deck"})
@@ -263,7 +264,7 @@ async def test_a_sender_scope_matches_only_the_sender() -> None:
     )
     repository.add(FolderName.INBOX, make_email("about-cargill", subject="Cargill is hiring"))
     server = build_server(
-        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
     )
 
     items = await call_search(server, {"term": "cargill", "scope": "sender"})

@@ -7,13 +7,13 @@ from outlook_mac_mcp import cli
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.search_emails import SearchEmails
-from outlook_mac_mcp.bootstrap import UseCases
 from outlook_mac_mcp.infrastructure.graph.authentication import (
     DeviceCodeAuthenticator,
     DeviceCodePrompt,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import ConfigurationError
 from outlook_mac_mcp.infrastructure.settings import CLIENT_ID_ENV_VAR, TIMEZONE_ENV_VAR
+from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 
 A_PROMPT = DeviceCodePrompt(
@@ -121,9 +121,7 @@ def test_serving_logs_the_resolved_time_zone_to_stderr(
 ) -> None:
     install_authenticator(monkeypatch, RecordingAuthenticator())
     monkeypatch.setattr(cli, "build_use_cases", lambda settings: _use_cases())
-    monkeypatch.setattr(
-        cli, "build_server", lambda list_unread_emails, search_emails, get_email: _ServerSpy([])
-    )
+    monkeypatch.setattr(cli, "build_server", lambda use_cases: _ServerSpy([]))
 
     cli.main([cli.SERVE_COMMAND])
 
@@ -148,11 +146,7 @@ def test_serving_does_not_start_a_device_code_flow(monkeypatch: pytest.MonkeyPat
     install_authenticator(monkeypatch, authenticator)
     started: list[bool] = []
     monkeypatch.setattr(cli, "build_use_cases", lambda settings: _use_cases())
-    monkeypatch.setattr(
-        cli,
-        "build_server",
-        lambda list_unread_emails, search_emails, get_email: _ServerSpy(started),
-    )
+    monkeypatch.setattr(cli, "build_server", lambda use_cases: _ServerSpy(started))
 
     assert cli.main([cli.SERVE_COMMAND]) == cli.EXIT_SUCCESS
     assert started == [True]
