@@ -1,9 +1,11 @@
 from collections import defaultdict
 
+from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.errors import EmailNotFoundError
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.search_scope import SearchScope
 
 
 class InMemoryMailRepository:
@@ -22,15 +24,15 @@ class InMemoryMailRepository:
         newest_first = sorted(unread, key=lambda email: email.received_at, reverse=True)
         return tuple(newest_first[:limit])
 
-    def search(self, folder: FolderName, term: str, limit: int) -> tuple[Email, ...]:
+    def search(self, request: SearchEmailsRequest) -> tuple[Email, ...]:
         """Insertion order, deliberately not date order: the port promises relevance."""
-        needle = term.casefold()
+        needle = request.term.casefold()
         matches = [
             email
-            for email in self._emails[folder]
-            if needle in email.subject.casefold() or needle in email.preview.casefold()
+            for email in self._emails[request.folder]
+            if _matches(email, needle, request.scope)
         ]
-        return tuple(matches[:limit])
+        return tuple(matches[: request.limit])
 
     def get_by_id(self, email_id: str) -> EmailDetail:
         for emails in self._emails.values():
@@ -38,3 +40,18 @@ class InMemoryMailRepository:
                 if email.id == email_id:
                     return EmailDetail(email=email, body=self._bodies[email_id])
         raise EmailNotFoundError(f"no email with id {email_id}")
+
+
+def _matches(email: Email, needle: str, scope: SearchScope) -> bool:
+    if scope is SearchScope.SUBJECT:
+        return needle in email.subject.casefold()
+    if scope is SearchScope.SENDER:
+        return (
+            needle in email.sender.address.casefold()
+            or needle in email.sender.display_name.casefold()
+        )
+    return (
+        needle in email.subject.casefold()
+        or needle in email.preview.casefold()
+        or needle in email.sender.address.casefold()
+    )

@@ -11,6 +11,7 @@ from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.limits import MAX_LIMIT, MIN_LIMIT
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.search_emails import SearchEmails
+from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.email_detail import EmailDetail
@@ -38,7 +39,7 @@ class FailingMailRepository:
     def get_by_id(self, email_id: str) -> EmailDetail:
         raise self._error
 
-    def search(self, folder: FolderName, term: str, limit: int) -> tuple[Email, ...]:
+    def search(self, request: SearchEmailsRequest) -> tuple[Email, ...]:
         raise self._error
 
 

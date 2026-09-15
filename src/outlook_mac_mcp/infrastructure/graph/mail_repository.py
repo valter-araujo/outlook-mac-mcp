@@ -3,6 +3,7 @@ from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote
 
+from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
@@ -14,7 +15,7 @@ from outlook_mac_mcp.infrastructure.graph.email_mapper import (
     to_email_detail,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
-from outlook_mac_mcp.infrastructure.graph.search_query import to_literal_phrase
+from outlook_mac_mcp.infrastructure.graph.search_query import to_search_query
 
 UNREAD_FILTER = "isRead eq false"
 NEWEST_FIRST_ORDER = "receivedDateTime desc"
@@ -76,17 +77,18 @@ class GraphMailRepository:
             raise
         return to_email_detail(payload)
 
-    def search(self, folder: FolderName, term: str, limit: int) -> tuple[Email, ...]:
+    def search(self, request: SearchEmailsRequest) -> tuple[Email, ...]:
         """No $orderby: Graph rejects it alongside $search, so results are relevance-ranked.
 
         The term is sent as a quoted KQL phrase, so text that reads like a query — `from:`,
-        `AND`, a stray colon — is searched for rather than executed.
+        `AND`, a stray colon — is searched for rather than executed. Any property
+        restriction is built from the scope enum, never from the term.
         """
         payload = self._client.get(
-            f"/me/mailFolders/{folder.value}/messages",
+            f"/me/mailFolders/{request.folder.value}/messages",
             {
-                "$search": to_literal_phrase(term),
-                "$top": limit,
+                "$search": to_search_query(request.term, request.scope),
+                "$top": request.limit,
                 "$select": ",".join(MESSAGE_FIELDS),
             },
         )

@@ -9,14 +9,15 @@ from mcp_types import CallToolResult
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.limits import MAX_LIMIT, MIN_LIMIT
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
-from outlook_mac_mcp.application.search_emails import (
+from outlook_mac_mcp.application.search_emails import SearchEmails
+from outlook_mac_mcp.application.search_emails_request import (
     MAX_TERM_LENGTH,
     MIN_TERM_LENGTH,
-    SearchEmails,
 )
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.interface.mcp.server import SEARCH_EMAILS_TOOL, build_server
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 
@@ -70,8 +71,8 @@ async def tool_schema(server: MCPServer) -> dict[str, Any]:
     return properties
 
 
-async def test_registers_the_tool_with_term_folder_and_limit() -> None:
-    assert set(await tool_schema(server_with())) == {"term", "folder", "limit"}
+async def test_registers_the_tool_with_term_folder_scope_and_limit() -> None:
+    assert set(await tool_schema(server_with())) == {"term", "folder", "scope", "limit"}
 
 
 async def test_advertises_the_term_length_bounds() -> None:
@@ -160,3 +161,73 @@ async def test_rejects_a_limit_outside_the_advertised_range() -> None:
 async def test_rejects_an_unknown_folder() -> None:
     with pytest.raises(ToolError):
         await call_search(server_with(), {"term": "deck", "folder": "nowhere"})
+
+
+async def test_offers_exactly_the_three_scopes_and_nothing_else() -> None:
+    tools = await server_with().list_tools()
+    tool = next(t for t in tools if t.name == SEARCH_EMAILS_TOOL)
+
+    scopes = tool.input_schema["$defs"]["SearchScope"]["enum"]
+
+    assert set(scopes) == {"any", "subject", "sender"}
+
+
+async def test_defaults_the_scope_to_any() -> None:
+    assert (await tool_schema(server_with()))["scope"]["default"] == SearchScope.ANY
+
+
+async def test_a_subject_scope_matches_only_the_subject() -> None:
+    server = server_with(
+        make_email("in-subject", subject="Cargill application"),
+        make_email("in-preview", subject="Job digest"),
+    )
+
+    items = await call_search(server, {"term": "Cargill", "scope": "subject"})
+
+    assert [item["id"] for item in items] == ["in-subject"]
+
+
+async def test_a_sender_scope_matches_only_the_sender() -> None:
+    repository = InMemoryMailRepository()
+    repository.add(
+        FolderName.INBOX,
+        Email(
+            id="from-cargill",
+            subject="Application received",
+            sender=EmailAddress(address="donotreply@cargill.com"),
+            received_at=BASE_TIME,
+            is_read=False,
+            has_attachments=False,
+            preview="",
+        ),
+    )
+    repository.add(FolderName.INBOX, make_email("about-cargill", subject="Cargill is hiring"))
+    server = build_server(
+        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+    )
+
+    items = await call_search(server, {"term": "cargill", "scope": "sender"})
+
+    assert [item["id"] for item in items] == ["from-cargill"]
+
+
+async def test_the_any_scope_matches_subject_and_sender_alike() -> None:
+    server = server_with(make_email("hit", subject="Cargill is hiring"))
+
+    items = await call_search(server, {"term": "Cargill", "scope": "any"})
+
+    assert [item["id"] for item in items] == ["hit"]
+
+
+async def test_rejects_an_unknown_scope() -> None:
+    with pytest.raises(ToolError):
+        await call_search(server_with(), {"term": "Cargill", "scope": "body"})
+
+
+async def test_says_in_its_description_that_results_are_capped_without_a_total() -> None:
+    tools = await server_with().list_tools()
+
+    description = (next(t for t in tools if t.name == SEARCH_EMAILS_TOOL).description or "").lower()
+    assert "at most" in description
+    assert "no total match count" in description
+    assert "seen them all" in description

@@ -1,6 +1,10 @@
 import pytest
 
-from outlook_mac_mcp.infrastructure.graph.search_query import to_literal_phrase
+from outlook_mac_mcp.domain.search_scope import SearchScope
+from outlook_mac_mcp.infrastructure.graph.search_query import (
+    to_literal_phrase,
+    to_search_query,
+)
 
 
 def test_wraps_a_plain_term_in_quotes() -> None:
@@ -55,3 +59,40 @@ def test_leaves_a_lone_colon_alone() -> None:
 
 def test_keeps_an_empty_looking_term_quoted() -> None:
     assert to_literal_phrase(" ") == '" "'
+
+
+def test_an_any_scope_adds_no_restriction() -> None:
+    assert to_search_query("Cargill", SearchScope.ANY) == '"Cargill"'
+
+
+def test_a_subject_scope_restricts_to_the_subject_property() -> None:
+    assert to_search_query("Cargill", SearchScope.SUBJECT) == 'subject:"Cargill"'
+
+
+def test_a_sender_scope_restricts_to_the_from_property() -> None:
+    """Graph's KQL calls it `from`, not `sender`; the enum name is ours, the property is theirs."""
+    assert to_search_query("Cargill", SearchScope.SENDER) == 'from:"Cargill"'
+
+
+def test_every_scope_has_a_query_form() -> None:
+    for scope in SearchScope:
+        assert to_search_query("x", scope)
+
+
+@pytest.mark.parametrize("scope", list(SearchScope))
+def test_the_term_stays_a_quoted_literal_under_every_scope(scope: SearchScope) -> None:
+    query = to_search_query("deck AND from:ceo@example.com", scope)
+
+    assert query.endswith('"deck AND from:ceo@example.com"')
+
+
+@pytest.mark.parametrize("scope", list(SearchScope))
+def test_a_breakout_attempt_is_escaped_under_every_scope(scope: SearchScope) -> None:
+    query = to_search_query('deck" AND from:ceo@example.com "', scope)
+
+    assert query.endswith('"deck\\" AND from:ceo@example.com \\""')
+
+
+def test_a_term_that_names_another_property_is_not_promoted_to_one() -> None:
+    """`subject:` inside the term must stay text even when the scope is already a property."""
+    assert to_search_query("subject:payroll", SearchScope.SENDER) == 'from:"subject:payroll"'
