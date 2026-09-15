@@ -10,10 +10,6 @@ class GraphError(OutlookMcpError):
     """
 
 
-class ConfigurationError(GraphError):
-    """The adapter is missing configuration it cannot invent, such as the client id."""
-
-
 class TokenCacheError(GraphError):
     """The Keychain could not be read or written."""
 

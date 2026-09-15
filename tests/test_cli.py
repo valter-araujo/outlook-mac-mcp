@@ -4,11 +4,11 @@ from collections.abc import Callable
 import pytest
 
 from outlook_mac_mcp import cli
+from outlook_mac_mcp.infrastructure.errors import ConfigurationError
 from outlook_mac_mcp.infrastructure.graph.authentication import (
     DeviceCodeAuthenticator,
     DeviceCodePrompt,
 )
-from outlook_mac_mcp.infrastructure.graph.errors import ConfigurationError
 from outlook_mac_mcp.infrastructure.settings import CLIENT_ID_ENV_VAR, TIMEZONE_ENV_VAR
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository

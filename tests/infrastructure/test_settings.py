@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import pytest
 
 from outlook_mac_mcp.infrastructure import settings
-from outlook_mac_mcp.infrastructure.graph.errors import ConfigurationError
+from outlook_mac_mcp.infrastructure.errors import ConfigurationError
 from outlook_mac_mcp.infrastructure.settings import (
     CLIENT_ID_ENV_VAR,
     TIMEZONE_ENV_VAR,
