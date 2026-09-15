@@ -9,6 +9,7 @@ from mcp_types import CallToolResult
 
 from outlook_mac_mcp.application.get_email import MAX_EMAIL_ID_LENGTH, GetEmail
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
+from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.folder_name import FolderName
@@ -37,7 +38,9 @@ AN_EMAIL = Email(
 def server_holding(body: str) -> MCPServer:
     repository = InMemoryMailRepository()
     repository.add(FolderName.INBOX, AN_EMAIL, body)
-    return build_server(ListUnreadEmails(repository), GetEmail(repository))
+    return build_server(
+        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+    )
 
 
 async def call_get_email(server: MCPServer, arguments: dict[str, Any]) -> dict[str, Any]:

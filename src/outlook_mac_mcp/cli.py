@@ -52,7 +52,7 @@ def _serve() -> int:
     """
     configure_logging()
     use_cases = build_use_cases()
-    build_server(use_cases.list_unread_emails, use_cases.get_email).run()
+    build_server(use_cases.list_unread_emails, use_cases.search_emails, use_cases.get_email).run()
     return EXIT_SUCCESS
 
 

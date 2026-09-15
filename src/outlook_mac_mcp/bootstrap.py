@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
+from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.infrastructure.graph.authentication import DeviceCodeAuthenticator
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailRepository
@@ -10,6 +11,7 @@ from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailReposi
 @dataclass(frozen=True, slots=True)
 class UseCases:
     list_unread_emails: ListUnreadEmails
+    search_emails: SearchEmails
     get_email: GetEmail
 
 
@@ -24,5 +26,6 @@ def build_use_cases() -> UseCases:
     repository = GraphMailRepository(GraphClient(authenticator))
     return UseCases(
         list_unread_emails=ListUnreadEmails(repository),
+        search_emails=SearchEmails(repository),
         get_email=GetEmail(repository),
     )
