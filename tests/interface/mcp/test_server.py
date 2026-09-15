@@ -16,6 +16,7 @@ from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
+from outlook_mac_mcp.domain.sender_scan import SenderScan
 from outlook_mac_mcp.infrastructure.graph.errors import NotAuthenticatedError
 from outlook_mac_mcp.interface.mcp.observability import configure_logging
 from outlook_mac_mcp.interface.mcp.server import LIST_UNREAD_EMAILS_TOOL, build_server
@@ -47,6 +48,9 @@ class FailingMailRepository:
         raise self._error
 
     def count_matching(self, filters: EmailFilters) -> int:
+        raise self._error
+
+    def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
         raise self._error
 
 

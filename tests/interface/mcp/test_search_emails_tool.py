@@ -20,6 +20,7 @@ from outlook_mac_mcp.domain.email_filters import EmailFilters
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.search_scope import SearchScope
+from outlook_mac_mcp.domain.sender_scan import SenderScan
 from outlook_mac_mcp.interface.mcp.server import SEARCH_EMAILS_TOOL, build_server
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 from tests.fakes.use_case_bundles import mail_only_use_cases
@@ -68,6 +69,9 @@ class LowerBoundMailRepository:
         raise NotImplementedError
 
     def count_matching(self, filters: EmailFilters) -> int:
+        raise NotImplementedError
+
+    def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
         raise NotImplementedError
 
 

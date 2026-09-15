@@ -7,6 +7,7 @@ from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
+from outlook_mac_mcp.domain.sender_scan import SenderScan
 
 
 class MailRepository(Protocol):
@@ -42,4 +43,11 @@ class MailRepository(Protocol):
 
     def count_matching(self, filters: EmailFilters) -> int:
         """Return how many emails match `filters`, exactly."""
+        ...
+
+    def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
+        """Return the sender of each email matching `filters`, at most `ceiling` of them.
+
+        The scan's total is exact even when the walk stopped at the ceiling.
+        """
         ...
