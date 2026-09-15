@@ -8,9 +8,6 @@ Exchange Online — and are therefore not supported by the official
 Backend: **Microsoft Graph API** with delegated, user-consented, least-privilege scopes.
 Python, transport `stdio`, no telemetry.
 
-> Status: **v1 in development.** Nothing below is validated yet — see
-> [Validated environments](#validated-environments).
-
 ## Why not AppleScript
 
 Community MCP servers for Outlook on Mac drive the app through AppleScript. That
@@ -66,11 +63,12 @@ config flag that is off by default, and trigger a new consent prompt.
 
 | OS | Python | MCP client | Account type | Outlook app installed | Status |
 |---|---|---|---|---|---|
-| macOS 27.0 (Golden Gate), Apple M5 | 3.12 | Claude Desktop | Personal (`@hotmail.com`) | Outlook for Mac 16.112.4 (26090911), New Outlook, M365 Subscription — not used by the server | **pending** |
+| macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | Outlook for Mac 16.112.4 (26090911), New Outlook, M365 Subscription — not used by the server | **validated** 2026-09-14 |
 
-A row moves to **validated** only after every v1 tool returns correct results
-on that environment. Contributions of new rows are welcome — please include
-exact versions.
+A row moves to **validated** only after every v1 tool shipped so far returns correct
+results on that environment, against a real mailbox. The row above covers
+`list_unread_emails` reading a Hotmail inbox through Graph. Contributions of new rows
+are welcome — please include exact versions.
 
 ## Scope
 
