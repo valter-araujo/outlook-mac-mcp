@@ -83,6 +83,11 @@ therefore unsupported by the official add-in and the Microsoft 365 connector.
   `@pytest.mark.integration` and disabled by default.
 - Coverage is not a goal; covered behavior is. Every fixed bug gets a test that reproduces
   it before the fix.
+- A security property that depends on how an external API parses our input (escaping,
+  quoting, encoding) is not proven by asserting the bytes we send. It requires a live
+  check with a positive control — an input that would change the result if the defence
+  failed — marked `@pytest.mark.integration` and recorded in the module's docstring with
+  the date.
 
 ## Observability
 - Structured JSON logs to stderr — never stdout (stdout is the MCP transport).
