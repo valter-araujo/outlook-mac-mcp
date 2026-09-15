@@ -1,22 +1,8 @@
+from outlook_mac_mcp.application.search_emails_request import (
+    UNSUPPORTED_TERM_CHARACTERS,
+)
+from outlook_mac_mcp.domain.errors import InvalidRequestError
 from outlook_mac_mcp.domain.search_scope import SearchScope
-
-BACKSLASH = "\\"
-DOUBLE_QUOTE = '"'
-
-
-def to_literal_phrase(term: str) -> str:
-    """Turn a search term into a KQL phrase that cannot carry operators.
-
-    Graph parses `$search` as KQL, where bare text such as `from:someone`, `AND` or `NOT`
-    are operators rather than words. Wrapping the whole term in double quotes makes it a
-    single literal phrase, so a term that looks like a query is searched for, not obeyed.
-
-    Backslashes are escaped before quotes: escaping in the other order would let a term
-    ending in a backslash consume the escape and close the phrase early.
-    """
-    escaped = term.replace(BACKSLASH, BACKSLASH * 2).replace(DOUBLE_QUOTE, BACKSLASH + DOUBLE_QUOTE)
-    return f"{DOUBLE_QUOTE}{escaped}{DOUBLE_QUOTE}"
-
 
 # The property names Graph's KQL uses for each scope. They come from this table and never
 # from the caller, which is what keeps a scoped search free of injected restrictions.
@@ -27,12 +13,27 @@ KQL_PROPERTY_BY_SCOPE = {
 
 
 def to_search_query(term: str, scope: SearchScope) -> str:
-    """Build the $search value: a quoted phrase, optionally restricted to one property.
+    """Build the $search value: a nested KQL phrase, optionally restricted to a property.
 
-    `subject:"deck"` narrows the match to the subject line, where an unscoped search also
-    reads the body and turns any newsletter that mentions the term into a hit.
+    Graph reads the whole $search value as one OData string and parses KQL *inside* it,
+    so the outer quotes are the string delimiter, not a phrase delimiter. Sending
+    `"deck AND from:x"` therefore executes the operators; the term is only literal inside
+    its own escaped phrase, `"\\"deck AND from:x\\""`. Verified against the live API: the
+    first form returns the filtered result, the second returns none.
+
+    A property restriction goes inside the same string, as `"subject:\\"deck\\""`. Placing
+    it outside, as `subject:"deck"`, is rejected by Graph with 400.
+
+    The term is guarded here as well as in the request, because this is the last point
+    before the wire and the quoting above is only sound for a term that cannot close it.
     """
-    phrase = to_literal_phrase(term)
+    _reject_unquotable(term)
+    phrase = f'\\"{term}\\"'
     if scope is SearchScope.ANY:
-        return phrase
-    return f"{KQL_PROPERTY_BY_SCOPE[scope]}:{phrase}"
+        return f'"{phrase}"'
+    return f'"{KQL_PROPERTY_BY_SCOPE[scope]}:{phrase}"'
+
+
+def _reject_unquotable(term: str) -> None:
+    if any(character in term for character in UNSUPPORTED_TERM_CHARACTERS):
+        raise InvalidRequestError("term must not contain a double quote or a backslash")

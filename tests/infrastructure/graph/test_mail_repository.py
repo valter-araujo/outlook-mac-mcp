@@ -283,7 +283,7 @@ def test_search_sends_the_term_as_a_quoted_phrase(repository: GraphMailRepositor
         SearchEmailsRequest(term="quarterly review", folder=FolderName.INBOX, limit=20)
     )
 
-    assert dict(route.calls.last.request.url.params)["$search"] == '"quarterly review"'
+    assert dict(route.calls.last.request.url.params)["$search"] == '"\\"quarterly review\\""'
 
 
 @respx.mock
@@ -325,23 +325,23 @@ def test_search_sends_an_operator_like_term_as_literal_text(
     )
 
     sent = dict(route.calls.last.request.url.params)["$search"]
-    assert sent == '"deck AND from:ceo@example.com"'
+    assert sent == '"\\"deck AND from:ceo@example.com\\""'
 
 
 @respx.mock
-def test_search_escapes_a_term_that_tries_to_close_the_phrase(
+def test_search_refuses_a_term_that_tries_to_close_the_phrase(
     repository: GraphMailRepository,
 ) -> None:
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
-    repository.search(
-        SearchEmailsRequest(
-            term='deck" AND from:ceo@example.com "', folder=FolderName.INBOX, limit=20
+    with pytest.raises(InvalidRequestError):
+        repository.search(
+            SearchEmailsRequest(
+                term='deck" AND from:ceo@example.com "', folder=FolderName.INBOX, limit=20
+            )
         )
-    )
 
-    sent = dict(route.calls.last.request.url.params)["$search"]
-    assert sent == '"deck\\" AND from:ceo@example.com \\""'
+    assert route.call_count == 0
 
 
 @respx.mock
@@ -370,7 +370,7 @@ def test_search_sends_no_restriction_for_the_any_scope(repository: GraphMailRepo
 
     repository.search(SearchEmailsRequest(term="Contoso", scope=SearchScope.ANY))
 
-    assert dict(route.calls.last.request.url.params)["$search"] == '"Contoso"'
+    assert dict(route.calls.last.request.url.params)["$search"] == '"\\"Contoso\\""'
 
 
 @respx.mock
@@ -379,7 +379,7 @@ def test_search_sends_a_subject_restriction(repository: GraphMailRepository) -> 
 
     repository.search(SearchEmailsRequest(term="Contoso", scope=SearchScope.SUBJECT))
 
-    assert dict(route.calls.last.request.url.params)["$search"] == 'subject:"Contoso"'
+    assert dict(route.calls.last.request.url.params)["$search"] == '"subject:\\"Contoso\\""'
 
 
 @respx.mock
@@ -388,7 +388,7 @@ def test_search_sends_a_sender_restriction(repository: GraphMailRepository) -> N
 
     repository.search(SearchEmailsRequest(term="Contoso", scope=SearchScope.SENDER))
 
-    assert dict(route.calls.last.request.url.params)["$search"] == 'from:"Contoso"'
+    assert dict(route.calls.last.request.url.params)["$search"] == '"from:\\"Contoso\\""'
 
 
 @respx.mock
@@ -397,16 +397,16 @@ def test_search_defaults_to_the_any_scope(repository: GraphMailRepository) -> No
 
     repository.search(SearchEmailsRequest(term="Contoso"))
 
-    assert dict(route.calls.last.request.url.params)["$search"] == '"Contoso"'
+    assert dict(route.calls.last.request.url.params)["$search"] == '"\\"Contoso\\""'
 
 
 @respx.mock
-def test_a_scoped_search_still_escapes_a_breakout_term(repository: GraphMailRepository) -> None:
+def test_a_scoped_search_refuses_a_breakout_term(repository: GraphMailRepository) -> None:
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
-    repository.search(
-        SearchEmailsRequest(term='x" OR from:ceo@example.com "', scope=SearchScope.SUBJECT)
-    )
+    with pytest.raises(InvalidRequestError):
+        repository.search(
+            SearchEmailsRequest(term='x" OR from:ceo@example.com "', scope=SearchScope.SUBJECT)
+        )
 
-    sent = dict(route.calls.last.request.url.params)["$search"]
-    assert sent == 'subject:"x\\" OR from:ceo@example.com \\""'
+    assert route.call_count == 0

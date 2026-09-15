@@ -11,14 +11,20 @@ from outlook_mac_mcp.application.search_emails_request import (
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.search_scope import SearchScope
 
+# Mirrors UNSUPPORTED_TERM_CHARACTERS so the refusal appears in the tool schema rather
+# than only as a runtime error.
+TERM_PATTERN = r'^[^"\\]*$'
+
 Term = Annotated[
     str,
     Field(
         min_length=MIN_TERM_LENGTH,
         max_length=MAX_TERM_LENGTH,
+        pattern=TERM_PATTERN,
         description=(
             "Text to look for. Matched literally: query operators such as from: or AND "
-            "are searched for as words, not interpreted."
+            "are searched for as words, not interpreted. Double quotes and backslashes "
+            "are not accepted."
         ),
     ),
 ]

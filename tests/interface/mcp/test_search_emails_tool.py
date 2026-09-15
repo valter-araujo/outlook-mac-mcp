@@ -27,7 +27,6 @@ BASE_TIME = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
 OPERATOR_LIKE_TERMS = [
     "from:ceo@example.com",
     "deck AND from:ana@example.com",
-    'deck" AND from:ceo@example.com "',
     "subject:payroll OR NOT lunch",
     "ratio 3:1",
 ]
@@ -231,3 +230,13 @@ async def test_says_in_its_description_that_results_are_capped_without_a_total()
     assert "at most" in description
     assert "no total match count" in description
     assert "seen them all" in description
+
+
+@pytest.mark.parametrize(
+    "term",
+    ['deck" AND from:ceo@example.com "', 'say "hi"', "path\\", "a\\b"],
+)
+async def test_rejects_a_term_holding_a_quote_or_backslash(term: str) -> None:
+    """Escaping these is not parsed reliably by Graph, so they are refused outright."""
+    with pytest.raises(ToolError):
+        await call_search(server_with(), {"term": term})
