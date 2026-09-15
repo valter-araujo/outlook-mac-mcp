@@ -82,6 +82,7 @@ include exact versions.
 | `list_upcoming_events` | 2026-09-15 | `days=15`: 2 of 2, an all-day event and a timed 08:00–14:00 BRT event, both correct in `America/Sao_Paulo`. |
 | `list_emails` | 2026-09-15 | `sort=oldest`, `limit=1` returned the folder's earliest email (2002-01-04) with an exact total of 32,098; `sender=donotreply@cargill.com` with `sort=newest` returned 1 of 1, and Graph accepted the exact-sender filter combined with `$orderby` without an `InefficientFilter` error. |
 | `count_emails` | 2026-09-15 | A received-time range covering August 2026 returned 91. |
+| `top_senders` | 2026-09-15 | Full inbox scan hit the ceiling: 10 pages of 1,000, 10,000 of 32,099 scanned in 3.7 s, `coverage_is_complete=false`; the client reported the partial coverage explicitly, as the description asks. |
 | `preview_event` | 2026-09-15 | Summary and token for a timed and an all-day event. |
 | `create_event` | 2026-09-15 | Created a timed event (11:00–12:00 BRT) and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. |
 
