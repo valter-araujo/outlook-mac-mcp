@@ -51,6 +51,20 @@ class GraphClient:
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
         return _read_payload(self._http_client.send(request))
 
+    def post(
+        self,
+        path: str,
+        body: Mapping[str, Any],
+        headers: Mapping[str, str] | None = None,
+    ) -> Mapping[str, Any]:
+        """Send a JSON body; the host and token rules are the same as for `get`."""
+        request = self._http_client.build_request(
+            "POST", _relative_path(path), json=body, headers=headers
+        )
+        _reject_foreign_host(request.url)
+        request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
+        return _read_payload(self._http_client.send(request))
+
     def follow(self, next_link: str) -> Mapping[str, Any]:
         """Fetch an @odata.nextLink, which Graph returns as an absolute URL.
 
