@@ -7,16 +7,14 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import CallToolResult
 
-from outlook_mac_mcp.application.get_email import MAX_EMAIL_ID_LENGTH, GetEmail
-from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
-from outlook_mac_mcp.application.search_emails import SearchEmails
+from outlook_mac_mcp.application.get_email import MAX_EMAIL_ID_LENGTH
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.interface.mcp.observability import configure_logging
 from outlook_mac_mcp.interface.mcp.server import GET_EMAIL_TOOL, build_server
-from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
+from tests.fakes.use_case_bundles import mail_only_use_cases
 
 pytestmark = pytest.mark.anyio
 
@@ -39,9 +37,7 @@ AN_EMAIL = Email(
 def server_holding(body: str) -> MCPServer:
     repository = InMemoryMailRepository()
     repository.add(FolderName.INBOX, AN_EMAIL, body)
-    return build_server(
-        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
-    )
+    return build_server(mail_only_use_cases(repository))
 
 
 async def call_get_email(server: MCPServer, arguments: dict[str, Any]) -> dict[str, Any]:

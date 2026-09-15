@@ -4,9 +4,6 @@ from collections.abc import Callable
 import pytest
 
 from outlook_mac_mcp import cli
-from outlook_mac_mcp.application.get_email import GetEmail
-from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
-from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.infrastructure.graph.authentication import (
     DeviceCodeAuthenticator,
     DeviceCodePrompt,
@@ -15,6 +12,7 @@ from outlook_mac_mcp.infrastructure.graph.errors import ConfigurationError
 from outlook_mac_mcp.infrastructure.settings import CLIENT_ID_ENV_VAR, TIMEZONE_ENV_VAR
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
+from tests.fakes.use_case_bundles import mail_only_use_cases
 
 A_PROMPT = DeviceCodePrompt(
     user_code="ABCD-EFGH",
@@ -133,12 +131,7 @@ def test_serving_logs_the_resolved_time_zone_to_stderr(
 
 
 def _use_cases() -> UseCases:
-    repository = InMemoryMailRepository()
-    return UseCases(
-        list_unread_emails=ListUnreadEmails(repository),
-        search_emails=SearchEmails(repository),
-        get_email=GetEmail(repository),
-    )
+    return mail_only_use_cases(InMemoryMailRepository())
 
 
 def test_serving_does_not_start_a_device_code_flow(monkeypatch: pytest.MonkeyPatch) -> None:
