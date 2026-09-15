@@ -1,0 +1,107 @@
+from collections.abc import Callable
+
+import pytest
+
+from outlook_mac_mcp import cli
+from outlook_mac_mcp.infrastructure.graph.authentication import (
+    DeviceCodeAuthenticator,
+    DeviceCodePrompt,
+)
+from outlook_mac_mcp.infrastructure.graph.errors import ConfigurationError
+
+A_PROMPT = DeviceCodePrompt(
+    user_code="ABCD-EFGH",
+    verification_uri="https://microsoft.com/devicelogin",
+    expires_in_seconds=900,
+)
+
+
+class RecordingAuthenticator:
+    """Stands in for the real authenticator so no browser or Keychain is involved."""
+
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+        self.signed_in = False
+
+    def sign_in(self, show_prompt: Callable[[DeviceCodePrompt], None]) -> None:
+        if self.error is not None:
+            raise self.error
+        show_prompt(A_PROMPT)
+        self.signed_in = True
+
+
+def install_authenticator(
+    monkeypatch: pytest.MonkeyPatch, authenticator: RecordingAuthenticator
+) -> None:
+    monkeypatch.setattr(
+        DeviceCodeAuthenticator, "from_environment", classmethod(lambda cls: authenticator)
+    )
+
+
+def test_defaults_to_serving_when_no_command_is_given() -> None:
+    assert cli._parse_command([]) == cli.SERVE_COMMAND
+
+
+def test_selects_the_sign_in_command() -> None:
+    assert cli._parse_command([cli.SIGN_IN_COMMAND]) == cli.SIGN_IN_COMMAND
+
+
+def test_rejects_an_unknown_command() -> None:
+    with pytest.raises(SystemExit):
+        cli._parse_command(["launch-missiles"])
+
+
+def test_sign_in_runs_the_device_code_flow(monkeypatch: pytest.MonkeyPatch) -> None:
+    authenticator = RecordingAuthenticator()
+    install_authenticator(monkeypatch, authenticator)
+
+    assert cli.main([cli.SIGN_IN_COMMAND]) == cli.EXIT_SUCCESS
+    assert authenticator.signed_in is True
+
+
+def test_sign_in_prints_the_code_to_stderr_and_never_to_stdout(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    install_authenticator(monkeypatch, RecordingAuthenticator())
+
+    cli.main([cli.SIGN_IN_COMMAND])
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "ABCD-EFGH" in captured.err
+    assert "https://microsoft.com/devicelogin" in captured.err
+
+
+def test_sign_in_reports_a_project_error_on_stderr_and_fails(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    install_authenticator(
+        monkeypatch, RecordingAuthenticator(ConfigurationError("OUTLOOK_MCP_CLIENT_ID is not set"))
+    )
+
+    exit_code = cli.main([cli.SIGN_IN_COMMAND])
+
+    captured = capsys.readouterr()
+    assert exit_code == cli.EXIT_FAILURE
+    assert captured.out == ""
+    assert "OUTLOOK_MCP_CLIENT_ID is not set" in captured.err
+
+
+def test_serving_does_not_start_a_device_code_flow(monkeypatch: pytest.MonkeyPatch) -> None:
+    authenticator = RecordingAuthenticator()
+    install_authenticator(monkeypatch, authenticator)
+    started: list[bool] = []
+    monkeypatch.setattr(cli, "build_list_unread_emails", lambda: None)
+    monkeypatch.setattr(cli, "build_server", lambda use_case: _ServerSpy(started))
+
+    assert cli.main([cli.SERVE_COMMAND]) == cli.EXIT_SUCCESS
+    assert started == [True]
+    assert authenticator.signed_in is False
+
+
+class _ServerSpy:
+    def __init__(self, started: list[bool]) -> None:
+        self._started = started
+
+    def run(self) -> None:
+        self._started.append(True)
