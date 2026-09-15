@@ -76,13 +76,16 @@ include exact versions.
 | Tool | Validated | What was checked |
 |---|---|---|
 | `list_unread_emails` | 2026-09-14 | Reads a Hotmail inbox through Graph. |
+| `search_emails` | 2026-09-14, 2026-09-15 | Term "Cargill": 26 matches with an exact total; `scope=subject` returned 5, `scope=sender` returned 1; a term trying to break out of the phrase returned empty with no 400. |
+| `get_email` | 2026-09-14 | Text body returned with the `Prefer` header honoured; the malformed id `nope` came back as `ErrorInvalidIdMalformed` and was mapped to `InvalidRequestError`. |
+| `list_todays_events` | 2026-09-15 | 0 of 0, exact, on a free day. |
+| `list_upcoming_events` | 2026-09-15 | `days=15`: 2 of 2, an all-day event and a timed 08:00–14:00 BRT event, both correct in `America/Sao_Paulo`. |
 | `preview_event` | 2026-09-15 | Summary and token for a timed and an all-day event. |
 | `create_event` | 2026-09-15 | Created a timed event (11:00–12:00 BRT) and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. |
 
-`search_emails`, `get_email`, `list_todays_events` and `list_upcoming_events` are
-covered by tests against recorded Graph responses (and, for search quoting, by a live
-positive-control check) but have not yet been validated as tools against a real
-mailbox.
+Every tool shipped so far has been validated against a real mailbox on the environment
+above. Search quoting is additionally covered by a live positive-control check, see
+[Integration tests](#integration-tests).
 
 ## Scope
 
