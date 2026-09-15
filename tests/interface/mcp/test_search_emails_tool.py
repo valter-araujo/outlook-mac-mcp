@@ -282,6 +282,15 @@ async def test_rejects_an_unknown_scope() -> None:
         await call_search(server_with(), {"term": "Cargill", "scope": "body"})
 
 
+async def test_says_results_are_not_a_sample_to_infer_totals_or_dates_from() -> None:
+    description = await tool_description(server_with())
+
+    assert "NOT a representative sample" in description
+    assert "do not infer a total, a date range" in description
+    assert "count_emails" in description
+    assert "list_emails with sort=oldest" in description
+
+
 async def test_tells_the_client_to_say_showing_n_of_m_and_to_narrow_the_scope() -> None:
     description = await tool_description(server_with())
 

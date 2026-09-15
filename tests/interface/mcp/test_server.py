@@ -170,6 +170,15 @@ async def test_reports_how_many_were_returned_out_of_how_many_exist() -> None:
     assert page["total_is_exact"] is True
 
 
+async def test_says_it_cannot_answer_how_many_or_how_far_back_the_folder_goes() -> None:
+    description = await tool_description(server_with())
+
+    assert "CANNOT" in description
+    assert "how far back" in description
+    assert "list_emails with sort=oldest" in description
+    assert "count_emails" in description
+
+
 async def test_tells_the_client_to_say_showing_n_of_m_and_to_narrow_the_scope() -> None:
     description = await tool_description(server_with())
 
