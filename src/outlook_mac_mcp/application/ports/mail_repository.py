@@ -4,11 +4,15 @@ from outlook_mac_mcp.application.search_emails_request import SearchEmailsReques
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.page import Page
 
 
 class MailRepository(Protocol):
-    def list_unread(self, folder: FolderName, limit: int) -> tuple[Email, ...]:
-        """Return up to `limit` unread emails from `folder`, newest first."""
+    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
+        """Return up to `limit` unread emails from `folder`, newest first.
+
+        The page's total is the number of unread emails in the folder, exact.
+        """
         ...
 
     def get_by_id(self, email_id: str) -> EmailDetail:
@@ -18,9 +22,11 @@ class MailRepository(Protocol):
         """
         ...
 
-    def search(self, request: SearchEmailsRequest) -> tuple[Email, ...]:
+    def search(self, request: SearchEmailsRequest) -> Page[Email]:
         """Return the emails matching `request`, in relevance order.
 
-        The term is matched as literal text; it never carries query operators.
+        The term is matched as literal text; it never carries query operators. The
+        page's total is the number of matches, which the backend may only be able to
+        bound from below; `total_is_exact` says which.
         """
         ...

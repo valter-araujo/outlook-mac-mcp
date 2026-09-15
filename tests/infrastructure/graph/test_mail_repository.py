@@ -10,6 +10,7 @@ from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.infrastructure.graph.client import GRAPH_BASE_URL, GraphClient
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
@@ -17,11 +18,14 @@ from outlook_mac_mcp.infrastructure.graph.mail_repository import (
     MALFORMED_ID_ERROR_CODE,
     GraphMailRepository,
 )
+from outlook_mac_mcp.infrastructure.graph.search_match_count import COUNT_CEILING
 
 INBOX_URL = f"{GRAPH_BASE_URL}/me/mailFolders/inbox/messages"
 ARCHIVE_URL = f"{GRAPH_BASE_URL}/me/mailFolders/archive/messages"
 MESSAGE_URL = f"{GRAPH_BASE_URL}/me/messages"
 AN_ID = "AAMkAGI2"
+NOTHING_UNREAD = {"value": [], "@odata.count": 0}
+A_SEARCH_REQUEST = SearchEmailsRequest(term="deck", folder=FolderName.INBOX, limit=20)
 
 
 def graph_message(message_id: str, *, received_at: str = "2026-09-14T12:30:00Z") -> dict[str, Any]:
@@ -55,7 +59,7 @@ def test_satisfies_the_mail_repository_port(repository: GraphMailRepository) -> 
 
 @respx.mock
 def test_asks_graph_for_unread_messages_newest_first(repository: GraphMailRepository) -> None:
-    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
     repository.list_unread(FolderName.INBOX, limit=20)
 
@@ -67,7 +71,7 @@ def test_asks_graph_for_unread_messages_newest_first(repository: GraphMailReposi
 
 @respx.mock
 def test_passes_the_limit_through_as_the_page_size(repository: GraphMailRepository) -> None:
-    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
     repository.list_unread(FolderName.INBOX, limit=3)
 
@@ -76,7 +80,7 @@ def test_passes_the_limit_through_as_the_page_size(repository: GraphMailReposito
 
 @respx.mock
 def test_requests_only_the_fields_the_domain_needs(repository: GraphMailRepository) -> None:
-    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
     repository.list_unread(FolderName.INBOX, limit=20)
 
@@ -87,7 +91,7 @@ def test_requests_only_the_fields_the_domain_needs(repository: GraphMailReposito
 
 @respx.mock
 def test_reads_the_requested_folder(repository: GraphMailRepository) -> None:
-    archive = respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+    archive = respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
     repository.list_unread(FolderName.ARCHIVE, limit=20)
 
@@ -105,12 +109,13 @@ def test_maps_every_returned_message_in_the_order_graph_gave_them(
                 "value": [
                     graph_message("newest", received_at="2026-09-14T12:30:00Z"),
                     graph_message("oldest", received_at="2026-09-14T08:00:00Z"),
-                ]
+                ],
+                "@odata.count": 2,
             },
         )
     )
 
-    emails = repository.list_unread(FolderName.INBOX, limit=20)
+    emails = repository.list_unread(FolderName.INBOX, limit=20).items
 
     assert [email.id for email in emails] == ["newest", "oldest"]
     assert emails[0].received_at == datetime(2026, 9, 14, 12, 30, tzinfo=UTC)
@@ -118,9 +123,56 @@ def test_maps_every_returned_message_in_the_order_graph_gave_them(
 
 @respx.mock
 def test_returns_empty_when_the_folder_has_no_unread(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
+
+    page = repository.list_unread(FolderName.INBOX, limit=20)
+
+    assert page == Page(items=(), total=0, total_is_exact=True)
+
+
+@respx.mock
+def test_asks_graph_to_count_the_unread_in_the_same_request(
+    repository: GraphMailRepository,
+) -> None:
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
+
+    repository.list_unread(FolderName.INBOX, limit=20)
+
+    assert dict(route.calls.last.request.url.params)["$count"] == "true"
+    assert route.call_count == 1
+
+
+@respx.mock
+def test_reports_the_folder_count_as_an_exact_total(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(
+            200, json={"value": [graph_message("one"), graph_message("two")], "@odata.count": 57}
+        )
+    )
+
+    page = repository.list_unread(FolderName.INBOX, limit=2)
+
+    assert len(page.items) == 2
+    assert page.total == 57
+    assert page.total_is_exact is True
+
+
+@respx.mock
+def test_raises_when_the_count_is_missing(repository: GraphMailRepository) -> None:
     respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
-    assert repository.list_unread(FolderName.INBOX, limit=20) == ()
+    with pytest.raises(GraphResponseError):
+        repository.list_unread(FolderName.INBOX, limit=20)
+
+
+@respx.mock
+def test_raises_when_the_count_is_not_a_number(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(200, json={"value": [], "@odata.count": "57"})
+    )
+
+    with pytest.raises(GraphResponseError):
+        repository.list_unread(FolderName.INBOX, limit=20)
 
 
 @respx.mock
@@ -350,18 +402,79 @@ def test_search_maps_the_results(repository: GraphMailRepository) -> None:
         return_value=httpx.Response(200, json={"value": [graph_message("found")]})
     )
 
-    result = repository.search(SearchEmailsRequest(term="deck", folder=FolderName.INBOX, limit=20))
+    result = repository.search(A_SEARCH_REQUEST)
 
-    assert [email.id for email in result] == ["found"]
+    assert [email.id for email in result.items] == ["found"]
 
 
 @respx.mock
 def test_search_returns_empty_when_nothing_matches(repository: GraphMailRepository) -> None:
     respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
-    assert (
-        repository.search(SearchEmailsRequest(term="deck", folder=FolderName.INBOX, limit=20)) == ()
+    page = repository.search(A_SEARCH_REQUEST)
+
+    assert page == Page(items=(), total=0, total_is_exact=True)
+
+
+@respx.mock
+def test_search_reports_an_exact_total_without_counting_when_the_page_is_the_last(
+    repository: GraphMailRepository,
+) -> None:
+    route = respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(200, json={"value": [graph_message("a"), graph_message("b")]})
     )
+
+    page = repository.search(A_SEARCH_REQUEST)
+
+    assert page.total == 2
+    assert page.total_is_exact is True
+    assert route.call_count == 1
+
+
+@respx.mock
+def test_search_counts_the_matches_by_id_when_the_page_is_not_the_last(
+    repository: GraphMailRepository,
+) -> None:
+    count = respx.get(INBOX_URL, params__contains={"$select": "id"}).mock(
+        return_value=httpx.Response(200, json={"value": [{"id": str(n)} for n in range(45)]})
+    )
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={"value": [graph_message("a")], "@odata.nextLink": f"{INBOX_URL}?%24skip=1"},
+        )
+    )
+
+    page = repository.search(SearchEmailsRequest(term="deck", limit=1))
+
+    assert [email.id for email in page.items] == ["a"]
+    assert page.total == 45
+    assert page.total_is_exact is True
+    assert dict(count.calls.last.request.url.params)["$search"] == '"\\"deck\\""'
+
+
+@respx.mock
+def test_search_reports_the_ceiling_as_a_lower_bound(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL, params__contains={"$select": "id"}).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [{"id": str(n)} for n in range(COUNT_CEILING)],
+                "@odata.nextLink": f"{INBOX_URL}?%24skip={COUNT_CEILING}",
+            },
+        )
+    )
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={"value": [graph_message("a")], "@odata.nextLink": f"{INBOX_URL}?%24skip=1"},
+        )
+    )
+
+    page = repository.search(SearchEmailsRequest(term="deck", limit=1))
+
+    assert page.total == COUNT_CEILING
+    assert page.total_is_exact is False
 
 
 @respx.mock

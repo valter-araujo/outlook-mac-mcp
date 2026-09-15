@@ -12,10 +12,10 @@ from typing import Any
 
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.errors import GraphResponseError
+from outlook_mac_mcp.infrastructure.graph.pagination import read_next_link
 
 COUNT_CEILING = 250
 ID_ONLY_SELECT = "id"
-NEXT_LINK_FIELD = "@odata.nextLink"
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +36,7 @@ def count_search_matches(client: GraphClient, path: str, search: str) -> MatchCo
     counted = 0
     while True:
         counted += _page_size(payload)
-        next_link = _read_next_link(payload)
+        next_link = read_next_link(payload)
         if counted > COUNT_CEILING or (counted == COUNT_CEILING and next_link is not None):
             return MatchCount(total=COUNT_CEILING, is_exact=False)
         if next_link is None:
@@ -49,12 +49,3 @@ def _page_size(payload: Mapping[str, Any]) -> int:
     if not isinstance(messages, list):
         raise GraphResponseError("the message collection carried no value array")
     return len(messages)
-
-
-def _read_next_link(payload: Mapping[str, Any]) -> str | None:
-    next_link = payload.get(NEXT_LINK_FIELD)
-    if next_link is None:
-        return None
-    if not isinstance(next_link, str) or not next_link:
-        raise GraphResponseError(f"the message collection carried a malformed {NEXT_LINK_FIELD}")
-    return next_link
