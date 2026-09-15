@@ -8,6 +8,7 @@ from outlook_mac_mcp.domain.time_window import TimeWindow
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.event_mapper import EVENT_FIELDS, to_event
 from outlook_mac_mcp.infrastructure.graph.pagination import read_items, read_next_link
+from outlook_mac_mcp.infrastructure.graph.preferences import timezone_preference
 
 CALENDAR_VIEW_PATH = "/me/calendarView"
 START_FIRST_ORDER = "start/dateTime"
@@ -44,7 +45,7 @@ class GraphCalendarRepository:
                 "$orderby": START_FIRST_ORDER,
                 "$top": PAGE_SIZE,
             },
-            {"Prefer": f'outlook.timezone="{self._timezone.key}"'},
+            timezone_preference(self._timezone),
         )
         return self._read_all_pages(payload)
 
