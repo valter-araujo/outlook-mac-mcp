@@ -51,6 +51,20 @@ class GraphClient:
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
         return _read_payload(self._http_client.send(request))
 
+    def follow(self, next_link: str) -> Mapping[str, Any]:
+        """Fetch an @odata.nextLink, which Graph returns as an absolute URL.
+
+        `get` refuses absolute URLs on purpose, so this is the one way in. The widening is
+        narrow and deliberate: the host is checked by the same rule and, as in `get`,
+        before the bearer token is attached, so a link pointing anywhere but
+        graph.microsoft.com is refused without the token ever being sent.
+        """
+        url = httpx.URL(next_link)
+        _reject_foreign_host(url)
+        request = self._http_client.build_request("GET", url)
+        request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
+        return _read_payload(self._http_client.send(request))
+
     def close(self) -> None:
         self._http_client.close()
 

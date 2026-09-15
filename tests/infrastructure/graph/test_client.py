@@ -188,3 +188,55 @@ def test_reports_an_unknown_code_when_the_body_carries_none(client: GraphClient)
         client.get(MESSAGES_PATH, {})
 
     assert failure.value.error_code == UNKNOWN_ERROR_CODE
+
+
+NEXT_LINK = f"{GRAPH_BASE_URL}/me/messages?%24skiptoken=abc123"
+
+
+@respx.mock
+def test_follows_a_pagination_link(client: GraphClient) -> None:
+    respx.get(NEXT_LINK).mock(return_value=httpx.Response(200, json={"value": [{"id": "2"}]}))
+
+    payload = client.follow(NEXT_LINK)
+
+    assert payload == {"value": [{"id": "2"}]}
+
+
+@respx.mock
+def test_sends_the_bearer_token_when_following_a_link(client: GraphClient) -> None:
+    route = respx.get(NEXT_LINK).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    client.follow(NEXT_LINK)
+
+    assert route.calls.last.request.headers["Authorization"] == "Bearer a-token"
+
+
+@respx.mock
+def test_refuses_a_pagination_link_to_another_host(client: GraphClient) -> None:
+    """A nextLink is server-supplied, so it is exactly the input a host check must survive."""
+    route = respx.get(ANOTHER_HOST_URL).mock(return_value=httpx.Response(200, json={}))
+
+    with pytest.raises(UnsupportedHostError):
+        client.follow(ANOTHER_HOST_URL)
+
+    assert route.call_count == 0
+
+
+@respx.mock
+def test_refuses_a_plain_http_pagination_link(client: GraphClient) -> None:
+    route = respx.get("http://graph.microsoft.com/v1.0/me/messages").mock(
+        return_value=httpx.Response(200, json={})
+    )
+
+    with pytest.raises(UnsupportedHostError):
+        client.follow("http://graph.microsoft.com/v1.0/me/messages")
+
+    assert route.call_count == 0
+
+
+@respx.mock
+def test_raises_when_a_followed_page_fails(client: GraphClient) -> None:
+    respx.get(NEXT_LINK).mock(return_value=httpx.Response(429, json={}))
+
+    with pytest.raises(GraphRequestError):
+        client.follow(NEXT_LINK)
