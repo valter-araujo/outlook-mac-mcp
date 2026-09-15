@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from tzlocal import get_localzone_name
 
-from outlook_mac_mcp.infrastructure.graph.errors import ConfigurationError
+from outlook_mac_mcp.infrastructure.errors import ConfigurationError
 
 CLIENT_ID_ENV_VAR = "OUTLOOK_MCP_CLIENT_ID"
 TIMEZONE_ENV_VAR = "OUTLOOK_MCP_TIMEZONE"
