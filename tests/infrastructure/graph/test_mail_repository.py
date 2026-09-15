@@ -6,12 +6,15 @@ import httpx
 import pytest
 import respx
 
+from outlook_mac_mcp.application.list_emails_request import ListEmailsRequest
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
+from outlook_mac_mcp.domain.email_filters import EmailFilters
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.search_scope import SearchScope
+from outlook_mac_mcp.domain.sort_order import SortOrder
 from outlook_mac_mcp.infrastructure.graph.client import GRAPH_BASE_URL, GraphClient
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
 from outlook_mac_mcp.infrastructure.graph.mail_repository import (
@@ -523,3 +526,105 @@ def test_a_scoped_search_refuses_a_breakout_term(repository: GraphMailRepository
         )
 
     assert route.call_count == 0
+
+
+A_LISTING = ListEmailsRequest(
+    filters=EmailFilters(is_read=False, sender="ana@example.com"), sort=SortOrder.OLDEST, limit=7
+)
+
+
+@respx.mock
+def test_list_sends_one_filter_an_order_and_a_count(repository: GraphMailRepository) -> None:
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
+
+    repository.list_matching(A_LISTING)
+
+    parameters = dict(route.calls.last.request.url.params)
+    assert parameters["$filter"] == (
+        "receivedDateTime ge 1970-01-01T00:00:00Z and isRead eq false and "
+        "from/emailAddress/address eq 'ana@example.com'"
+    )
+    assert parameters["$orderby"] == "receivedDateTime asc"
+    assert parameters["$count"] == "true"
+    assert parameters["$top"] == "7"
+    assert "bodyPreview" in parameters["$select"].split(",")
+
+
+@respx.mock
+def test_list_sends_no_filter_when_nothing_is_restricted(repository: GraphMailRepository) -> None:
+    route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
+
+    repository.list_matching(ListEmailsRequest())
+
+    parameters = dict(route.calls.last.request.url.params)
+    assert "$filter" not in parameters
+    assert parameters["$orderby"] == "receivedDateTime desc"
+
+
+@respx.mock
+def test_list_reads_the_requested_folder(repository: GraphMailRepository) -> None:
+    archive = respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
+
+    repository.list_matching(ListEmailsRequest(filters=EmailFilters(folder=FolderName.ARCHIVE)))
+
+    assert archive.call_count == 1
+
+
+@respx.mock
+def test_list_maps_the_page_and_reads_the_exact_total(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(
+            200, json={"value": [graph_message("one"), graph_message("two")], "@odata.count": 41}
+        )
+    )
+
+    page = repository.list_matching(ListEmailsRequest(limit=2))
+
+    assert [email.id for email in page.items] == ["one", "two"]
+    assert page.total == 41
+    assert page.total_is_exact is True
+
+
+@respx.mock
+def test_list_raises_when_the_count_is_missing(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    with pytest.raises(GraphResponseError):
+        repository.list_matching(ListEmailsRequest())
+
+
+@respx.mock
+def test_count_asks_for_the_number_and_the_smallest_page(repository: GraphMailRepository) -> None:
+    route = respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(200, json={"value": [{"id": "x"}], "@odata.count": 1204})
+    )
+
+    total = repository.count_matching(EmailFilters(is_read=False, sender="ana@example.com"))
+
+    parameters = dict(route.calls.last.request.url.params)
+    assert total == 1204
+    assert parameters["$filter"] == (
+        "isRead eq false and from/emailAddress/address eq 'ana@example.com'"
+    )
+    assert parameters["$count"] == "true"
+    assert parameters["$top"] == "1"
+    assert parameters["$select"] == "id"
+    assert "$orderby" not in parameters
+
+
+@respx.mock
+def test_count_without_filters_counts_the_whole_folder(repository: GraphMailRepository) -> None:
+    route = respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(200, json={"value": [], "@odata.count": 0})
+    )
+
+    assert repository.count_matching(EmailFilters(folder=FolderName.ARCHIVE)) == 0
+    assert "$filter" not in dict(route.calls.last.request.url.params)
+
+
+@respx.mock
+def test_count_raises_when_graph_returns_no_count(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    with pytest.raises(GraphResponseError):
+        repository.count_matching(EmailFilters())
