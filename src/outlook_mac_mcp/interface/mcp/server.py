@@ -27,6 +27,7 @@ from outlook_mac_mcp.interface.mcp.search_emails_input import (
     SearchLimit,
     Term,
 )
+from outlook_mac_mcp.interface.mcp.top_senders_tool import register_top_senders_tool
 from outlook_mac_mcp.interface.mcp.totals_guidance import totals_guidance
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 
@@ -75,6 +76,7 @@ def build_server(use_cases: UseCases) -> MCPServer:
     _register_search_emails(server, use_cases.search_emails)
     _register_get_email(server, use_cases.get_email)
     register_mail_listing_tools(server, use_cases)
+    register_top_senders_tool(server, use_cases.top_senders)
     register_calendar_tools(server, use_cases)
     if use_cases.calendar_write is not None:
         register_calendar_write_tools(server, use_cases.calendar_write)

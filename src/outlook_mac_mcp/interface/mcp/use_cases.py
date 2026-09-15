@@ -7,6 +7,7 @@ from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
 from outlook_mac_mcp.application.search_emails import SearchEmails
+from outlook_mac_mcp.application.top_senders import TopSenders
 from outlook_mac_mcp.interface.mcp.calendar_write_use_cases import CalendarWriteUseCases
 
 
@@ -25,6 +26,7 @@ class UseCases:
     list_upcoming_events: ListUpcomingEvents
     list_emails: ListEmails
     count_emails: CountEmails
+    top_senders: TopSenders
     # None when the write flag is off: the tools then do not exist, rather than exist
     # and fail, so a client cannot even be tempted to call them.
     calendar_write: CalendarWriteUseCases | None = None
