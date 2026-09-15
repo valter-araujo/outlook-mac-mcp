@@ -80,6 +80,8 @@ include exact versions.
 | `get_email` | 2026-09-14 | Text body returned with the `Prefer` header honoured; the malformed id `nope` came back as `ErrorInvalidIdMalformed` and was mapped to `InvalidRequestError`. |
 | `list_todays_events` | 2026-09-15 | 0 of 0, exact, on a free day. |
 | `list_upcoming_events` | 2026-09-15 | `days=15`: 2 of 2, an all-day event and a timed 08:00–14:00 BRT event, both correct in `America/Sao_Paulo`. |
+| `list_emails` | 2026-09-15 | `sort=oldest`, `limit=1` returned the folder's earliest email (2002-01-04) with an exact total of 32,098; `sender=donotreply@cargill.com` with `sort=newest` returned 1 of 1, and Graph accepted the exact-sender filter combined with `$orderby` without an `InefficientFilter` error. |
+| `count_emails` | 2026-09-15 | A received-time range covering August 2026 returned 91. |
 | `preview_event` | 2026-09-15 | Summary and token for a timed and an all-day event. |
 | `create_event` | 2026-09-15 | Created a timed event (11:00–12:00 BRT) and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. |
 
