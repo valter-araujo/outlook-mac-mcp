@@ -5,9 +5,11 @@ import pytest
 from outlook_mac_mcp.infrastructure import settings
 from outlook_mac_mcp.infrastructure.errors import ConfigurationError
 from outlook_mac_mcp.infrastructure.settings import (
+    CALENDAR_WRITE_ENV_VAR,
     CLIENT_ID_ENV_VAR,
     TIMEZONE_ENV_VAR,
     load_settings,
+    read_calendar_write_flag,
     resolve_timezone,
 )
 
@@ -71,8 +73,41 @@ def test_loads_the_client_id_and_the_zone_together() -> None:
 
     assert loaded.client_id == "a-client-id"
     assert loaded.timezone == ZoneInfo("Europe/Lisbon")
+    assert loaded.calendar_write_enabled is False
 
 
 def test_requires_the_client_id() -> None:
     with pytest.raises(ConfigurationError, match=CLIENT_ID_ENV_VAR):
         load_settings({TIMEZONE_ENV_VAR: "Europe/Lisbon"})
+
+
+def test_calendar_write_is_off_when_the_flag_is_absent() -> None:
+    assert read_calendar_write_flag({}) is False
+
+
+@pytest.mark.parametrize("value", ["true", "TRUE", "1", " true "])
+def test_calendar_write_is_on_for_an_explicit_true(value: str) -> None:
+    assert read_calendar_write_flag({CALENDAR_WRITE_ENV_VAR: value}) is True
+
+
+@pytest.mark.parametrize("value", ["false", "False", "0", ""])
+def test_calendar_write_is_off_for_an_explicit_false(value: str) -> None:
+    assert read_calendar_write_flag({CALENDAR_WRITE_ENV_VAR: value}) is False
+
+
+@pytest.mark.parametrize("value", ["yes", "on", "enabled", "2"])
+def test_rejects_a_flag_value_that_is_neither_true_nor_false(value: str) -> None:
+    with pytest.raises(ConfigurationError, match=CALENDAR_WRITE_ENV_VAR):
+        read_calendar_write_flag({CALENDAR_WRITE_ENV_VAR: value})
+
+
+def test_loads_the_calendar_write_flag_with_the_rest() -> None:
+    loaded = load_settings(
+        {
+            CLIENT_ID_ENV_VAR: "a-client-id",
+            TIMEZONE_ENV_VAR: "Europe/Lisbon",
+            CALENDAR_WRITE_ENV_VAR: "true",
+        }
+    )
+
+    assert loaded.calendar_write_enabled is True
