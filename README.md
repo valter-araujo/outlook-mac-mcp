@@ -236,6 +236,21 @@ uv run outlook-mac-mcp sign-in
 Turning the flag off again does not shrink the consent already granted; revoke it at
 <https://account.live.com/consent/Manage> if you want the write permission gone.
 
+With the flag on, two tools appear. Creating an event is always a two-step handshake:
+
+1. `preview_event` takes the full details (subject, start, end with UTC offsets,
+   optional location, all-day flag, up to 50 attendee addresses), validates them, and
+   returns a one-line summary plus an opaque token. Nothing is written.
+2. `create_event` takes only that token and performs the real change. A token works
+   exactly once and only within the same server process; an unknown or already used
+   token is refused, and a server restart discards every pending draft.
+
+Both tool descriptions instruct the client to show the summary and get the user's
+agreement before creating, and to get explicit confirmation of every detail before even
+previewing when any of it came from email content. Email is untrusted input; a message
+can be written to talk a model into putting something on your calendar, and the user,
+never the email, decides.
+
 ### Troubleshooting
 
 | Symptom | Cause |

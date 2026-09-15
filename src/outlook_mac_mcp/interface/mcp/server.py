@@ -9,6 +9,7 @@ from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.interface.mcp.calendar_tools import register_calendar_tools
+from outlook_mac_mcp.interface.mcp.calendar_write_tools import register_calendar_write_tools
 from outlook_mac_mcp.interface.mcp.email_detail_view import EmailDetailView
 from outlook_mac_mcp.interface.mcp.email_page_view import EmailPageView
 from outlook_mac_mcp.interface.mcp.get_email_input import EmailId, GetEmailInput
@@ -66,6 +67,8 @@ def build_server(use_cases: UseCases) -> MCPServer:
     _register_search_emails(server, use_cases.search_emails)
     _register_get_email(server, use_cases.get_email)
     register_calendar_tools(server, use_cases)
+    if use_cases.calendar_write is not None:
+        register_calendar_write_tools(server, use_cases.calendar_write)
     return server
 
 
