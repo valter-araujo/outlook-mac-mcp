@@ -72,13 +72,23 @@ def server_failing_with(error: Exception) -> MCPServer:
     )
 
 
-async def call_tool(server: MCPServer, arguments: dict[str, Any]) -> list[dict[str, Any]]:
+async def call_page(server: MCPServer, arguments: dict[str, Any]) -> dict[str, Any]:
     result = await server.call_tool(LIST_UNREAD_EMAILS_TOOL, arguments)
     assert isinstance(result, CallToolResult)
-    assert result.structured_content is not None
-    items = result.structured_content["result"]
+    page = result.structured_content
+    assert isinstance(page, dict)
+    return page
+
+
+async def call_tool(server: MCPServer, arguments: dict[str, Any]) -> list[dict[str, Any]]:
+    items = (await call_page(server, arguments))["items"]
     assert isinstance(items, list)
     return items
+
+
+async def tool_description(server: MCPServer) -> str:
+    tools = await server.list_tools()
+    return next(tool for tool in tools if tool.name == LIST_UNREAD_EMAILS_TOOL).description or ""
 
 
 async def tool_properties(server: MCPServer) -> dict[str, Any]:
@@ -138,6 +148,34 @@ async def test_passes_the_folder_and_limit_through_to_the_use_case() -> None:
 
 async def test_returns_an_empty_list_when_nothing_is_unread() -> None:
     assert await call_tool(server_with(), {}) == []
+
+
+async def test_reports_zero_totals_when_nothing_is_unread() -> None:
+    page = await call_page(server_with(), {})
+
+    assert page["returned"] == 0
+    assert page["total"] == 0
+    assert page["total_is_exact"] is True
+
+
+async def test_reports_how_many_were_returned_out_of_how_many_exist() -> None:
+    server = server_with(
+        make_email("one"), make_email("two", minutes_ago=1), make_email("three", minutes_ago=2)
+    )
+
+    page = await call_page(server, {"limit": 2})
+
+    assert page["returned"] == 2
+    assert page["total"] == 3
+    assert page["total_is_exact"] is True
+
+
+async def test_tells_the_client_to_say_showing_n_of_m_and_to_narrow_the_scope() -> None:
+    description = await tool_description(server_with())
+
+    assert '"showing N of M"' in description
+    assert "at least" in description
+    assert "narrowing the scope" in description
 
 
 async def test_translates_a_project_error_into_a_tool_error_carrying_its_message() -> None:

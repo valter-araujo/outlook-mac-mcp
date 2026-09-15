@@ -13,10 +13,13 @@ from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.application.search_emails_request import (
     MAX_TERM_LENGTH,
     MIN_TERM_LENGTH,
+    SearchEmailsRequest,
 )
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
+from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.interface.mcp.server import SEARCH_EMAILS_TOOL, build_server
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
@@ -44,6 +47,24 @@ def make_email(email_id: str, *, subject: str, minutes_ago: int = 0) -> Email:
     )
 
 
+A_LOWER_BOUND = 250
+
+
+class LowerBoundMailRepository:
+    """A backend that stopped counting, the way Graph does past the search ceiling."""
+
+    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
+        raise NotImplementedError
+
+    def get_by_id(self, email_id: str) -> EmailDetail:
+        raise NotImplementedError
+
+    def search(self, request: SearchEmailsRequest) -> Page[Email]:
+        return Page(
+            items=(make_email("hit", subject="deck"),), total=A_LOWER_BOUND, total_is_exact=False
+        )
+
+
 def server_with(*emails: Email) -> MCPServer:
     repository = InMemoryMailRepository()
     for email in emails:
@@ -53,13 +74,23 @@ def server_with(*emails: Email) -> MCPServer:
     )
 
 
-async def call_search(server: MCPServer, arguments: dict[str, Any]) -> list[dict[str, Any]]:
+async def search_page(server: MCPServer, arguments: dict[str, Any]) -> dict[str, Any]:
     result = await server.call_tool(SEARCH_EMAILS_TOOL, arguments)
     assert isinstance(result, CallToolResult)
-    assert result.structured_content is not None
-    items = result.structured_content["result"]
+    page = result.structured_content
+    assert isinstance(page, dict)
+    return page
+
+
+async def call_search(server: MCPServer, arguments: dict[str, Any]) -> list[dict[str, Any]]:
+    items = (await search_page(server, arguments))["items"]
     assert isinstance(items, list)
     return items
+
+
+async def tool_description(server: MCPServer) -> str:
+    tools = await server.list_tools()
+    return next(tool for tool in tools if tool.name == SEARCH_EMAILS_TOOL).description or ""
 
 
 async def tool_schema(server: MCPServer) -> dict[str, Any]:
@@ -89,9 +120,8 @@ async def test_advertises_the_limit_bounds() -> None:
 
 
 async def test_says_in_its_description_that_results_are_ranked_by_relevance() -> None:
-    tools = await server_with().list_tools()
+    description = await tool_description(server_with())
 
-    description = next(t for t in tools if t.name == SEARCH_EMAILS_TOOL).description or ""
     assert "relevance" in description.lower()
     assert "not by date" in description.lower()
 
@@ -121,6 +151,37 @@ async def test_searches_the_requested_folder() -> None:
 
 async def test_returns_an_empty_list_when_nothing_matches() -> None:
     assert await call_search(server_with(), {"term": "payroll"}) == []
+
+
+async def test_reports_zero_totals_when_nothing_matches() -> None:
+    page = await search_page(server_with(), {"term": "payroll"})
+
+    assert page["returned"] == 0
+    assert page["total"] == 0
+    assert page["total_is_exact"] is True
+
+
+async def test_reports_how_many_were_returned_out_of_how_many_match() -> None:
+    server = server_with(*(make_email(str(index), subject="deck") for index in range(5)))
+
+    page = await search_page(server, {"term": "deck", "limit": 2})
+
+    assert page["returned"] == 2
+    assert page["total"] == 5
+    assert page["total_is_exact"] is True
+
+
+async def test_passes_an_inexact_total_through_as_a_lower_bound() -> None:
+    repository = LowerBoundMailRepository()
+    server = build_server(
+        ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository)
+    )
+
+    page = await search_page(server, {"term": "deck"})
+
+    assert page["returned"] == 1
+    assert page["total"] == A_LOWER_BOUND
+    assert page["total_is_exact"] is False
 
 
 @pytest.mark.parametrize("term", OPERATOR_LIKE_TERMS)
@@ -223,13 +284,12 @@ async def test_rejects_an_unknown_scope() -> None:
         await call_search(server_with(), {"term": "Contoso", "scope": "body"})
 
 
-async def test_says_in_its_description_that_results_are_capped_without_a_total() -> None:
-    tools = await server_with().list_tools()
+async def test_tells_the_client_to_say_showing_n_of_m_and_to_narrow_the_scope() -> None:
+    description = await tool_description(server_with())
 
-    description = (next(t for t in tools if t.name == SEARCH_EMAILS_TOOL).description or "").lower()
-    assert "at most" in description
-    assert "no total match count" in description
-    assert "seen them all" in description
+    assert '"showing N of M"' in description
+    assert "at least" in description
+    assert "narrowing the scope" in description
 
 
 @pytest.mark.parametrize(
