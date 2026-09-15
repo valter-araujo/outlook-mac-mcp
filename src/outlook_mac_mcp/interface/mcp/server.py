@@ -2,7 +2,8 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from outlook_mac_mcp.application.get_email import GetEmail
-from outlook_mac_mcp.application.list_unread_emails import DEFAULT_LIMIT, ListUnreadEmails
+from outlook_mac_mcp.application.limits import DEFAULT_LIMIT
+from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.interface.mcp.email_detail_view import EmailDetailView

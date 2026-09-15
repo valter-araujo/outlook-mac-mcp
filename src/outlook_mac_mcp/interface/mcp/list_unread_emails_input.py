@@ -2,12 +2,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from outlook_mac_mcp.application.list_unread_emails import (
-    DEFAULT_LIMIT,
-    MAX_LIMIT,
-    MIN_LIMIT,
-    ListUnreadEmailsRequest,
-)
+from outlook_mac_mcp.application.limits import DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT
+from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmailsRequest
 from outlook_mac_mcp.domain.folder_name import FolderName
 
 Folder = Annotated[FolderName, Field(description="Mailbox folder to read.")]

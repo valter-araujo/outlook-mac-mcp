@@ -8,11 +8,8 @@ from mcp.server.mcpserver.exceptions import ToolError, UnexpectedToolError
 from mcp_types import CallToolResult
 
 from outlook_mac_mcp.application.get_email import GetEmail
-from outlook_mac_mcp.application.list_unread_emails import (
-    MAX_LIMIT,
-    MIN_LIMIT,
-    ListUnreadEmails,
-)
+from outlook_mac_mcp.application.limits import MAX_LIMIT, MIN_LIMIT
+from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.email_detail import EmailDetail

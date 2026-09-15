@@ -1,12 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from outlook_mac_mcp.application.list_unread_emails import (
-    DEFAULT_LIMIT,
-    MAX_LIMIT,
-    MIN_LIMIT,
-    ListUnreadEmailsRequest,
-)
+from outlook_mac_mcp.application.limits import DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT
+from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmailsRequest
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.interface.mcp.list_unread_emails_input import ListUnreadEmailsInput
 
