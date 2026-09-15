@@ -77,23 +77,24 @@ def _reject_foreign_host(url: httpx.URL) -> None:
 
 def _read_payload(response: httpx.Response) -> Mapping[str, Any]:
     if not response.is_success:
-        raise GraphRequestError(_describe_failure(response), response.status_code)
+        error_code = _error_code(response)
+        raise GraphRequestError(
+            _describe_failure(response, error_code), response.status_code, error_code
+        )
     payload = _decode_json(response)
     if not isinstance(payload, dict):
         raise GraphResponseError("Graph returned a JSON value that is not an object")
     return payload
 
 
-def _describe_failure(response: httpx.Response) -> str:
+def _describe_failure(response: httpx.Response, error_code: str) -> str:
     """Report the status, Graph's error code and the request id, and nothing from the body.
 
     A Graph error body echoes the query and can carry mailbox content, so only these three
     fields are safe to surface or log.
     """
     request_id = response.headers.get("request-id", UNKNOWN_REQUEST_ID)
-    return (
-        f"Graph returned {response.status_code} ({_error_code(response)}); request-id {request_id}"
-    )
+    return f"Graph returned {response.status_code} ({error_code}); request-id {request_id}"
 
 
 def _error_code(response: httpx.Response) -> str:

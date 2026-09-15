@@ -90,7 +90,7 @@ def test_never_writes_the_error_message_into_the_log(capsys: pytest.CaptureFixtu
     configure_logging()
 
     with pytest.raises(GraphRequestError), observed_tool_call(A_TOOL):
-        raise GraphRequestError(SECRET_MESSAGE, 403)
+        raise GraphRequestError(SECRET_MESSAGE, 403, "ErrorAccessDenied")
 
     logged = json.dumps(read_records(capsys)[0])
     assert "ceo@example.com" not in logged

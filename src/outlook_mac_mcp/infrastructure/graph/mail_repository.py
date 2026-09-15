@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
-from outlook_mac_mcp.domain.errors import EmailNotFoundError
+from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.email_mapper import (
@@ -19,6 +19,11 @@ UNREAD_FILTER = "isRead eq false"
 NEWEST_FIRST_ORDER = "receivedDateTime desc"
 DETAIL_FIELDS = (*MESSAGE_FIELDS, "body")
 BODY_AS_TEXT_HEADER = {"Prefer": 'outlook.body-content-type="text"'}
+
+# Graph answers 400 with this code for an id that is not a well-formed message id, and
+# 404 only for a well-formed id that no longer resolves. Matching the code rather than
+# the message keeps this from breaking when Microsoft rewords the text.
+MALFORMED_ID_ERROR_CODE = "ErrorInvalidIdMalformed"
 
 
 class GraphMailRepository:
@@ -63,6 +68,8 @@ class GraphMailRepository:
                 BODY_AS_TEXT_HEADER,
             )
         except GraphRequestError as error:
+            if error.error_code == MALFORMED_ID_ERROR_CODE:
+                raise InvalidRequestError(f"malformed email id: {email_id}") from error
             if error.status_code == HTTPStatus.NOT_FOUND:
                 raise EmailNotFoundError(f"no email with id {email_id}") from error
             raise

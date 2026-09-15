@@ -29,13 +29,15 @@ class AuthenticationError(GraphError):
 class GraphRequestError(GraphError):
     """Graph answered with a non-success status.
 
-    Carries the status so callers can tell an expected condition, such as a message that
-    does not exist, from an infrastructure failure, without parsing the message text.
+    Carries the status and Graph's own error code so callers can tell an expected
+    condition, such as a message that does not exist or an id that is not well formed,
+    from an infrastructure failure, without parsing the message text.
     """
 
-    def __init__(self, message: str, status_code: int) -> None:
+    def __init__(self, message: str, status_code: int, error_code: str) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.error_code = error_code
 
 
 class GraphResponseError(GraphError):

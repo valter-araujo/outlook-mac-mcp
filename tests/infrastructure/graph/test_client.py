@@ -6,6 +6,7 @@ import respx
 
 from outlook_mac_mcp.infrastructure.graph.client import (
     GRAPH_BASE_URL,
+    UNKNOWN_ERROR_CODE,
     GraphClient,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import (
@@ -165,3 +166,25 @@ def test_reports_the_failing_status_on_the_error(client: GraphClient) -> None:
         client.get(MESSAGES_PATH, {})
 
     assert failure.value.status_code == 404
+
+
+@respx.mock
+def test_reports_the_graph_error_code_on_the_error(client: GraphClient) -> None:
+    respx.get(MESSAGES_URL).mock(
+        return_value=httpx.Response(400, json={"error": {"code": "ErrorInvalidIdMalformed"}})
+    )
+
+    with pytest.raises(GraphRequestError) as failure:
+        client.get(MESSAGES_PATH, {})
+
+    assert failure.value.error_code == "ErrorInvalidIdMalformed"
+
+
+@respx.mock
+def test_reports_an_unknown_code_when_the_body_carries_none(client: GraphClient) -> None:
+    respx.get(MESSAGES_URL).mock(return_value=httpx.Response(500, text="oops"))
+
+    with pytest.raises(GraphRequestError) as failure:
+        client.get(MESSAGES_PATH, {})
+
+    assert failure.value.error_code == UNKNOWN_ERROR_CODE

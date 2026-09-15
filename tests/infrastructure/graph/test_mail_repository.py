@@ -7,11 +7,14 @@ import pytest
 import respx
 
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
-from outlook_mac_mcp.domain.errors import EmailNotFoundError
+from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.infrastructure.graph.client import GRAPH_BASE_URL, GraphClient
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
-from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailRepository
+from outlook_mac_mcp.infrastructure.graph.mail_repository import (
+    MALFORMED_ID_ERROR_CODE,
+    GraphMailRepository,
+)
 
 INBOX_URL = f"{GRAPH_BASE_URL}/me/mailFolders/inbox/messages"
 ARCHIVE_URL = f"{GRAPH_BASE_URL}/me/mailFolders/archive/messages"
@@ -226,6 +229,44 @@ def test_does_not_disguise_other_failures_as_not_found(
 ) -> None:
     respx.get(f"{MESSAGE_URL}/{AN_ID}").mock(
         return_value=httpx.Response(403, json={"error": {"code": "ErrorAccessDenied"}})
+    )
+
+    with pytest.raises(GraphRequestError):
+        repository.get_by_id(AN_ID)
+
+
+@respx.mock
+def test_raises_invalid_request_when_graph_rejects_the_id_as_malformed(
+    repository: GraphMailRepository,
+) -> None:
+    respx.get(f"{MESSAGE_URL}/nope").mock(
+        return_value=httpx.Response(400, json={"error": {"code": MALFORMED_ID_ERROR_CODE}})
+    )
+
+    with pytest.raises(InvalidRequestError, match="malformed email id"):
+        repository.get_by_id("nope")
+
+
+@respx.mock
+def test_matches_the_malformed_id_on_the_code_not_the_message(
+    repository: GraphMailRepository,
+) -> None:
+    """The same code with different wording must still map, and other 400s must not."""
+    respx.get(f"{MESSAGE_URL}/nope").mock(
+        return_value=httpx.Response(
+            400,
+            json={"error": {"code": MALFORMED_ID_ERROR_CODE, "message": "reworded by Microsoft"}},
+        )
+    )
+
+    with pytest.raises(InvalidRequestError):
+        repository.get_by_id("nope")
+
+
+@respx.mock
+def test_leaves_other_bad_requests_as_graph_errors(repository: GraphMailRepository) -> None:
+    respx.get(f"{MESSAGE_URL}/{AN_ID}").mock(
+        return_value=httpx.Response(400, json={"error": {"code": "ErrorInvalidParameter"}})
     )
 
     with pytest.raises(GraphRequestError):
