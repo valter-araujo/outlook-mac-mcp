@@ -62,14 +62,27 @@ on triggers a new sign-in and consent prompt.
 
 ## Validated environments
 
-| OS | Python | MCP client | Account type | Outlook app installed | Status |
-|---|---|---|---|---|---|
-| macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | Outlook for Mac 16.112.4 (26090911), New Outlook, M365 Subscription — not used by the server | **validated** 2026-09-14 |
+| Version | OS | Python | MCP client | Account type | Outlook app installed | Status |
+|---|---|---|---|---|---|---|
+| 0.1.0 | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | Outlook for Mac 16.112.4 (26090911), New Outlook, M365 Subscription — not used by the server | **validated** 2026-09-14 |
+| 0.2.0 (calendar write on) | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | as above | **validated** 2026-09-15 |
 
-A row moves to **validated** only after every v1 tool shipped so far returns correct
-results on that environment, against a real mailbox. The row above covers
-`list_unread_emails` reading a Hotmail inbox through Graph. Contributions of new rows
-are welcome — please include exact versions.
+A row moves to **validated** only after the tools it names return correct results on
+that environment, against a real mailbox. Contributions of new rows are welcome — please
+include exact versions.
+
+### Validated tools
+
+| Tool | Validated | What was checked |
+|---|---|---|
+| `list_unread_emails` | 2026-09-14 | Reads a Hotmail inbox through Graph. |
+| `preview_event` | 2026-09-15 | Summary and token for a timed and an all-day event. |
+| `create_event` | 2026-09-15 | Created a timed event (11:00–12:00 BRT) and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. |
+
+`search_emails`, `get_email`, `list_todays_events` and `list_upcoming_events` are
+covered by tests against recorded Graph responses (and, for search quoting, by a live
+positive-control check) but have not yet been validated as tools against a real
+mailbox.
 
 ## Scope
 
@@ -198,7 +211,8 @@ Three things this configuration has to get right:
   server fails to start, replace `"command": "uv"` with the absolute path from
   `which uv` (typically `~/.local/bin/uv`).
 
-Restart Claude Desktop. `list_unread_emails` should appear in the tool list.
+Restart Claude Desktop. `list_unread_emails` and the other read tools should appear in
+the tool list; `preview_event` and `create_event` appear only with the write flag on.
 
 ### Optional: log level
 
