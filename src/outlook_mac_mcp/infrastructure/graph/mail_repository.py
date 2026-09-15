@@ -11,6 +11,7 @@ from outlook_mac_mcp.domain.email_filters import EmailFilters
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
+from outlook_mac_mcp.domain.sender_scan import SenderScan
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.email_mapper import (
     MESSAGE_FIELDS,
@@ -22,6 +23,7 @@ from outlook_mac_mcp.infrastructure.graph.mail_query import count_query, list_qu
 from outlook_mac_mcp.infrastructure.graph.pagination import read_items, read_next_link
 from outlook_mac_mcp.infrastructure.graph.search_match_count import count_search_matches
 from outlook_mac_mcp.infrastructure.graph.search_query import to_search_query
+from outlook_mac_mcp.infrastructure.graph.sender_scan import scan_senders
 
 UNREAD_FILTER = "isRead eq false"
 NEWEST_FIRST_ORDER = "receivedDateTime desc"
@@ -113,6 +115,9 @@ class GraphMailRepository:
             {**count_query(filters), "$top": COUNT_PAGE_SIZE, "$select": ID_ONLY_SELECT},
         )
         return _read_count(payload)
+
+    def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
+        return scan_senders(self._client, _messages_path(filters.folder), filters, ceiling)
 
     def search(self, request: SearchEmailsRequest) -> Page[Email]:
         """No $orderby: Graph rejects it alongside $search, so results are relevance-ranked.

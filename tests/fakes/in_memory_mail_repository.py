@@ -9,6 +9,7 @@ from outlook_mac_mcp.domain.errors import EmailNotFoundError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.search_scope import SearchScope
+from outlook_mac_mcp.domain.sender_scan import SenderScan
 from outlook_mac_mcp.domain.sort_order import SortOrder
 
 
@@ -52,6 +53,17 @@ class InMemoryMailRepository:
 
     def count_matching(self, filters: EmailFilters) -> int:
         return len(self._matching(filters))
+
+    def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
+        """Newest first, like a Graph walk with no order asked for, cut at the ceiling."""
+        matching = sorted(
+            self._matching(filters), key=lambda email: email.received_at, reverse=True
+        )
+        return SenderScan(
+            senders=tuple(email.sender for email in matching[:ceiling]),
+            total=len(matching),
+            coverage_is_complete=len(matching) <= ceiling,
+        )
 
     def _matching(self, filters: EmailFilters) -> list[Email]:
         return [email for email in self._emails[filters.folder] if _passes(email, filters)]
