@@ -2,7 +2,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from outlook_mac_mcp.bootstrap import build_list_unread_emails
+from outlook_mac_mcp.bootstrap import build_use_cases
 from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.infrastructure.graph.authentication import (
     DeviceCodeAuthenticator,
@@ -51,7 +51,8 @@ def _serve() -> int:
     stdout carries the MCP protocol.
     """
     configure_logging()
-    build_server(build_list_unread_emails()).run()
+    use_cases = build_use_cases()
+    build_server(use_cases.list_unread_emails, use_cases.get_email).run()
     return EXIT_SUCCESS
 
 

@@ -3,11 +3,15 @@ from collections.abc import Callable
 import pytest
 
 from outlook_mac_mcp import cli
+from outlook_mac_mcp.application.get_email import GetEmail
+from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
+from outlook_mac_mcp.bootstrap import UseCases
 from outlook_mac_mcp.infrastructure.graph.authentication import (
     DeviceCodeAuthenticator,
     DeviceCodePrompt,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import ConfigurationError
+from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 
 A_PROMPT = DeviceCodePrompt(
     user_code="ABCD-EFGH",
@@ -91,8 +95,14 @@ def test_serving_does_not_start_a_device_code_flow(monkeypatch: pytest.MonkeyPat
     authenticator = RecordingAuthenticator()
     install_authenticator(monkeypatch, authenticator)
     started: list[bool] = []
-    monkeypatch.setattr(cli, "build_list_unread_emails", lambda: None)
-    monkeypatch.setattr(cli, "build_server", lambda use_case: _ServerSpy(started))
+    repository = InMemoryMailRepository()
+    use_cases = UseCases(
+        list_unread_emails=ListUnreadEmails(repository), get_email=GetEmail(repository)
+    )
+    monkeypatch.setattr(cli, "build_use_cases", lambda: use_cases)
+    monkeypatch.setattr(
+        cli, "build_server", lambda list_unread_emails, get_email: _ServerSpy(started)
+    )
 
     assert cli.main([cli.SERVE_COMMAND]) == cli.EXIT_SUCCESS
     assert started == [True]

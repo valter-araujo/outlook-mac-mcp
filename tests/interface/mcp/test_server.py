@@ -7,6 +7,7 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError, UnexpectedToolError
 from mcp_types import CallToolResult
 
+from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_unread_emails import (
     MAX_LIMIT,
     MIN_LIMIT,
@@ -56,11 +57,12 @@ def server_with(*emails: Email) -> MCPServer:
     repository = InMemoryMailRepository()
     for email in emails:
         repository.add(FolderName.INBOX, email)
-    return build_server(ListUnreadEmails(repository))
+    return build_server(ListUnreadEmails(repository), GetEmail(repository))
 
 
 def server_failing_with(error: Exception) -> MCPServer:
-    return build_server(ListUnreadEmails(FailingMailRepository(error)))
+    repository = FailingMailRepository(error)
+    return build_server(ListUnreadEmails(repository), GetEmail(repository))
 
 
 async def call_tool(server: MCPServer, arguments: dict[str, Any]) -> list[dict[str, Any]]:
@@ -118,7 +120,7 @@ async def test_passes_the_folder_and_limit_through_to_the_use_case() -> None:
     repository = InMemoryMailRepository()
     repository.add(FolderName.ARCHIVE, make_email("archived"))
     repository.add(FolderName.INBOX, make_email("inboxed"))
-    server = build_server(ListUnreadEmails(repository))
+    server = build_server(ListUnreadEmails(repository), GetEmail(repository))
 
     items = await call_tool(server, {"folder": "archive", "limit": 1})
 
