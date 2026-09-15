@@ -8,6 +8,7 @@ requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
     "keyring>=25.7.0",
+    "mcp>=2.2.0",
     "msal>=1.38.0",
 ]
 

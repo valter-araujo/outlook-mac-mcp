@@ -7,12 +7,13 @@ from outlook_mac_mcp.domain.folder_name import FolderName
 
 MIN_LIMIT = 1
 MAX_LIMIT = 100
+DEFAULT_LIMIT = 20
 
 
 @dataclass(frozen=True, slots=True)
 class ListUnreadEmailsRequest:
     folder: FolderName = FolderName.INBOX
-    limit: int = 20
+    limit: int = DEFAULT_LIMIT
 
     def __post_init__(self) -> None:
         if not MIN_LIMIT <= self.limit <= MAX_LIMIT:
