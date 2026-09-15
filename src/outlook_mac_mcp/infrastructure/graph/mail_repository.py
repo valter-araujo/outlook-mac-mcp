@@ -8,6 +8,7 @@ from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.email_mapper import (
     MESSAGE_FIELDS,
@@ -15,10 +16,13 @@ from outlook_mac_mcp.infrastructure.graph.email_mapper import (
     to_email_detail,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
+from outlook_mac_mcp.infrastructure.graph.pagination import read_next_link
+from outlook_mac_mcp.infrastructure.graph.search_match_count import count_search_matches
 from outlook_mac_mcp.infrastructure.graph.search_query import to_search_query
 
 UNREAD_FILTER = "isRead eq false"
 NEWEST_FIRST_ORDER = "receivedDateTime desc"
+COUNT_FIELD = "@odata.count"
 DETAIL_FIELDS = (*MESSAGE_FIELDS, "body")
 BODY_AS_TEXT_HEADER = {"Prefer": 'outlook.body-content-type="text"'}
 
@@ -34,17 +38,20 @@ class GraphMailRepository:
     Satisfies the MailRepository port structurally; the use cases never import this module.
 
     `$top` is a page size, not a cap: with a `$filter` Graph may return fewer items than
-    asked while more unread mail exists behind `@odata.nextLink`. v1 reads a single page,
-    so `limit` is an upper bound on what comes back, not a promise of what is there.
+    asked while more mail exists behind `@odata.nextLink`. Only the first page is read,
+    so `limit` bounds what comes back; the page's total is what says how much there is.
     """
 
     def __init__(self, client: GraphClient) -> None:
         self._client = client
 
-    def list_unread(self, folder: FolderName, limit: int) -> tuple[Email, ...]:
+    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
         """Nothing user-supplied is spliced into the query: the folder segment comes from a
         closed enum of well-known names, the filter and order are constants, and `limit` is an
         int validated by the use case, so there is no string for a caller to break out of.
+
+        `$count=true` makes Graph report how many messages match the filter in the same
+        response, so the total costs no extra request.
         """
         payload = self._client.get(
             f"/me/mailFolders/{folder.value}/messages",
@@ -53,9 +60,11 @@ class GraphMailRepository:
                 "$orderby": NEWEST_FIRST_ORDER,
                 "$top": limit,
                 "$select": ",".join(MESSAGE_FIELDS),
+                "$count": "true",
             },
         )
-        return tuple(to_email(message) for message in _read_messages(payload))
+        emails = tuple(to_email(message) for message in _read_messages(payload))
+        return Page(items=emails, total=_read_count(payload), total_is_exact=True)
 
     def get_by_id(self, email_id: str) -> EmailDetail:
         """The id is percent-encoded before it becomes a path segment.
@@ -77,22 +86,27 @@ class GraphMailRepository:
             raise
         return to_email_detail(payload)
 
-    def search(self, request: SearchEmailsRequest) -> tuple[Email, ...]:
+    def search(self, request: SearchEmailsRequest) -> Page[Email]:
         """No $orderby: Graph rejects it alongside $search, so results are relevance-ranked.
 
         The term is sent as a quoted KQL phrase, so text that reads like a query — `from:`,
         `AND`, a stray colon — is searched for rather than executed. Any property
         restriction is built from the scope enum, never from the term.
+
+        Graph cannot count a search, so the matches are walked separately, and only when
+        the page is not the last one: a page with no next link already holds every match.
         """
+        path = f"/me/mailFolders/{request.folder.value}/messages"
+        search = to_search_query(request.term, request.scope)
         payload = self._client.get(
-            f"/me/mailFolders/{request.folder.value}/messages",
-            {
-                "$search": to_search_query(request.term, request.scope),
-                "$top": request.limit,
-                "$select": ",".join(MESSAGE_FIELDS),
-            },
+            path,
+            {"$search": search, "$top": request.limit, "$select": ",".join(MESSAGE_FIELDS)},
         )
-        return tuple(to_email(message) for message in _read_messages(payload))
+        emails = tuple(to_email(message) for message in _read_messages(payload))
+        if read_next_link(payload) is None:
+            return Page(items=emails, total=len(emails), total_is_exact=True)
+        count = count_search_matches(self._client, path, search)
+        return Page(items=emails, total=count.total, total_is_exact=count.is_exact)
 
 
 def _read_messages(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
@@ -103,3 +117,11 @@ def _read_messages(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
         if not isinstance(message, dict):
             raise GraphResponseError("the message collection held something other than a message")
     return messages
+
+
+def _read_count(payload: Mapping[str, Any]) -> int:
+    """A missing count is a malformed answer, not zero: it was asked for explicitly."""
+    count = payload.get(COUNT_FIELD)
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        raise GraphResponseError(f"the message collection carried no {COUNT_FIELD}")
+    return count

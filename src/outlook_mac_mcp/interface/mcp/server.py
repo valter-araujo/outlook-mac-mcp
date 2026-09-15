@@ -85,9 +85,9 @@ def _translate(use_case: ListUnreadEmails, model: ListUnreadEmailsInput) -> list
     rather than the ToolError it is about to become.
     """
     with observed_tool_call(LIST_UNREAD_EMAILS_TOOL) as outcome:
-        emails = use_case.execute(model.to_request())
-        outcome.item_count = len(emails)
-        return [EmailView.from_email(email) for email in emails]
+        page = use_case.execute(model.to_request())
+        outcome.item_count = len(page.items)
+        return [EmailView.from_email(email) for email in page.items]
 
 
 def _register_get_email(server: MCPServer, use_case: GetEmail) -> None:
@@ -125,6 +125,6 @@ def _register_search_emails(server: MCPServer, use_case: SearchEmails) -> None:
 
 def _translate_search(use_case: SearchEmails, model: SearchEmailsInput) -> list[EmailView]:
     with observed_tool_call(SEARCH_EMAILS_TOOL) as outcome:
-        emails = use_case.execute(model.to_request())
-        outcome.item_count = len(emails)
-        return [EmailView.from_email(email) for email in emails]
+        page = use_case.execute(model.to_request())
+        outcome.item_count = len(page.items)
+        return [EmailView.from_email(email) for email in page.items]

@@ -16,6 +16,7 @@ from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.infrastructure.graph.errors import NotAuthenticatedError
 from outlook_mac_mcp.interface.mcp.observability import configure_logging
 from outlook_mac_mcp.interface.mcp.server import LIST_UNREAD_EMAILS_TOOL, build_server
@@ -33,13 +34,13 @@ class FailingMailRepository:
     def __init__(self, error: Exception) -> None:
         self._error = error
 
-    def list_unread(self, folder: FolderName, limit: int) -> tuple[Email, ...]:
+    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
         raise self._error
 
     def get_by_id(self, email_id: str) -> EmailDetail:
         raise self._error
 
-    def search(self, request: SearchEmailsRequest) -> tuple[Email, ...]:
+    def search(self, request: SearchEmailsRequest) -> Page[Email]:
         raise self._error
 
 

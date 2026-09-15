@@ -34,7 +34,9 @@ def test_returns_empty_when_folder_has_no_unread() -> None:
 
     result = use_case.execute(ListUnreadEmailsRequest())
 
-    assert result == ()
+    assert result.items == ()
+    assert result.total == 0
+    assert result.total_is_exact is True
 
 
 def test_returns_only_unread_emails_from_requested_folder() -> None:
@@ -46,7 +48,21 @@ def test_returns_only_unread_emails_from_requested_folder() -> None:
 
     result = use_case.execute(ListUnreadEmailsRequest(folder=FolderName.INBOX))
 
-    assert [email.id for email in result] == ["unread-inbox"]
+    assert [email.id for email in result.items] == ["unread-inbox"]
+
+
+def test_reports_the_exact_number_of_unread_beyond_the_page() -> None:
+    repository = InMemoryMailRepository()
+    for index in range(5):
+        repository.add(FolderName.INBOX, make_email(str(index), minutes_ago=index))
+    repository.add(FolderName.INBOX, make_email("read", is_read=True))
+    use_case = ListUnreadEmails(repository)
+
+    result = use_case.execute(ListUnreadEmailsRequest(limit=2))
+
+    assert len(result.items) == 2
+    assert result.total == 5
+    assert result.total_is_exact is True
 
 
 def test_returns_newest_first_and_respects_limit() -> None:
@@ -58,7 +74,7 @@ def test_returns_newest_first_and_respects_limit() -> None:
 
     result = use_case.execute(ListUnreadEmailsRequest(limit=2))
 
-    assert [email.id for email in result] == ["newest", "middle"]
+    assert [email.id for email in result.items] == ["newest", "middle"]
 
 
 @pytest.mark.parametrize("limit", [0, 101])

@@ -4,6 +4,7 @@ from outlook_mac_mcp.application.limits import DEFAULT_LIMIT, ensure_limit_withi
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.page import Page
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,5 +20,5 @@ class ListUnreadEmails:
     def __init__(self, mail_repository: MailRepository) -> None:
         self._mail_repository = mail_repository
 
-    def execute(self, request: ListUnreadEmailsRequest) -> tuple[Email, ...]:
+    def execute(self, request: ListUnreadEmailsRequest) -> Page[Email]:
         return self._mail_repository.list_unread(request.folder, request.limit)

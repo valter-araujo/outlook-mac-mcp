@@ -38,7 +38,7 @@ def test_returns_the_emails_matching_the_term() -> None:
 
     result = use_case.execute(SearchEmailsRequest(term="quarterly"))
 
-    assert [email.id for email in result] == ["hit"]
+    assert [email.id for email in result.items] == ["hit"]
 
 
 def test_searches_only_the_requested_folder() -> None:
@@ -49,14 +49,18 @@ def test_searches_only_the_requested_folder() -> None:
 
     result = use_case.execute(SearchEmailsRequest(term="deck", folder=FolderName.ARCHIVE))
 
-    assert [email.id for email in result] == ["archived"]
+    assert [email.id for email in result.items] == ["archived"]
 
 
 def test_returns_empty_when_nothing_matches() -> None:
     repository = InMemoryMailRepository()
     repository.add(FolderName.INBOX, make_email("one", subject="Lunch"))
 
-    assert SearchEmails(repository).execute(SearchEmailsRequest(term="payroll")) == ()
+    result = SearchEmails(repository).execute(SearchEmailsRequest(term="payroll"))
+
+    assert result.items == ()
+    assert result.total == 0
+    assert result.total_is_exact is True
 
 
 def test_respects_the_limit() -> None:
@@ -66,7 +70,19 @@ def test_respects_the_limit() -> None:
 
     result = SearchEmails(repository).execute(SearchEmailsRequest(term="deck", limit=2))
 
-    assert len(result) == 2
+    assert len(result.items) == 2
+
+
+def test_reports_the_exact_number_of_matches_beyond_the_page() -> None:
+    repository = InMemoryMailRepository()
+    for index in range(5):
+        repository.add(FolderName.INBOX, make_email(str(index), subject="deck"))
+    repository.add(FolderName.INBOX, make_email("other", subject="lunch"))
+
+    result = SearchEmails(repository).execute(SearchEmailsRequest(term="deck", limit=2))
+
+    assert result.total == 5
+    assert result.total_is_exact is True
 
 
 def test_defaults_to_the_inbox_and_the_shared_limit() -> None:
