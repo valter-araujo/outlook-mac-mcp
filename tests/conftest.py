@@ -6,6 +6,12 @@ import pytest
 from outlook_mac_mcp.interface.mcp.observability import LOGGER_NAME
 
 
+@pytest.fixture
+def anyio_backend() -> str:
+    """Run async tests on asyncio only; the MCP SDK is exercised the way it ships."""
+    return "asyncio"
+
+
 @pytest.fixture(autouse=True)
 def restore_project_logger() -> Iterator[None]:
     """Keep logging configuration from leaking between tests.

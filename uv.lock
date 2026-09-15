@@ -825,6 +825,8 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "anyio" },
+    { name = "mcp-types" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "respx" },
@@ -841,6 +843,8 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "anyio", specifier = ">=4.15.1" },
+    { name = "mcp-types", specifier = ">=2.2.0" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "respx", specifier = ">=0.23.1" },
