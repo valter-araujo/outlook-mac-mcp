@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 from collections.abc import Sequence
 
@@ -8,7 +9,8 @@ from outlook_mac_mcp.infrastructure.graph.authentication import (
     DeviceCodeAuthenticator,
     DeviceCodePrompt,
 )
-from outlook_mac_mcp.interface.mcp.observability import configure_logging
+from outlook_mac_mcp.infrastructure.settings import load_settings
+from outlook_mac_mcp.interface.mcp.observability import configure_logging, record_startup
 from outlook_mac_mcp.interface.mcp.server import build_server
 
 SERVE_COMMAND = "serve"
@@ -51,13 +53,17 @@ def _serve() -> int:
     stdout carries the MCP protocol.
     """
     configure_logging()
-    use_cases = build_use_cases()
+    settings = load_settings(os.environ)
+    record_startup(settings.timezone.key)
+    use_cases = build_use_cases(settings)
     build_server(use_cases.list_unread_emails, use_cases.search_emails, use_cases.get_email).run()
     return EXIT_SUCCESS
 
 
 def _sign_in() -> int:
-    DeviceCodeAuthenticator.from_environment().sign_in(_show_prompt)
+    """Loads every setting, not only the client id, so a bad time zone fails here too."""
+    settings = load_settings(os.environ)
+    DeviceCodeAuthenticator.from_settings(settings).sign_in(_show_prompt)
     print("Signed in. The token is stored in the macOS Keychain.", file=sys.stderr)
     return EXIT_SUCCESS
 

@@ -9,9 +9,11 @@ from outlook_mac_mcp.interface.mcp.observability import (
     DEFAULT_LOG_LEVEL,
     LOG_LEVEL_ENV_VAR,
     LOGGER_NAME,
+    STARTUP_EVENT,
     TOOL_CALL_EVENT,
     configure_logging,
     observed_tool_call,
+    record_startup,
 )
 
 A_TOOL = "list_unread_emails"
@@ -124,3 +126,13 @@ def test_takes_its_level_from_the_environment(monkeypatch: pytest.MonkeyPatch) -
     configure_logging()
 
     assert logging.getLogger(LOGGER_NAME).level == logging.WARNING
+
+
+def test_records_the_resolved_time_zone_at_startup(capsys: pytest.CaptureFixture[str]) -> None:
+    configure_logging()
+
+    record_startup("America/Sao_Paulo")
+
+    record = read_records(capsys)[0]
+    assert record["event"] == STARTUP_EVENT
+    assert record["timezone"] == "America/Sao_Paulo"

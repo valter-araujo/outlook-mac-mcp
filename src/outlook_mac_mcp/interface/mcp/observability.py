@@ -15,6 +15,7 @@ LOGGER_NAME = "outlook_mac_mcp"
 LOG_LEVEL_ENV_VAR = "OUTLOOK_MCP_LOG_LEVEL"
 DEFAULT_LOG_LEVEL = "INFO"
 TOOL_CALL_EVENT = "tool_call"
+STARTUP_EVENT = "startup"
 UNKNOWN_ERROR_TYPE = "UnknownError"
 NO_ERROR_TYPE = ""
 
@@ -63,6 +64,12 @@ def configure_logging() -> None:
     logger.setLevel(os.environ.get(LOG_LEVEL_ENV_VAR, DEFAULT_LOG_LEVEL))
     logger.handlers = [handler]
     logger.propagate = False
+
+
+def record_startup(timezone_name: str) -> None:
+    """Name the zone every calendar time will be expressed in; a zone is metadata, not content."""
+    logger = logging.getLogger(LOGGER_NAME)
+    logger.info(STARTUP_EVENT, extra={"fields": {"timezone": timezone_name}})
 
 
 @contextmanager

@@ -10,6 +10,7 @@ dependencies = [
     "keyring>=25.7.0",
     "mcp>=2.2.0",
     "msal>=1.38.0",
+    "tzlocal>=5.4.4",
 ]
 
 [project.scripts]

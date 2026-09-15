@@ -205,12 +205,21 @@ Restart Claude Desktop. `list_unread_emails` should appear in the tool list.
 stderr and carry metadata only — tool name, correlation id, duration, outcome and item
 count, never subjects, addresses or bodies. Add it to the same `env` block.
 
+### Optional: time zone
+
+Calendar tools express every time in one zone and decide what "today" means from it.
+By default that is the machine's time zone, as reported by the operating system. To
+override it, add `OUTLOOK_MCP_TIMEZONE` with an IANA name (for example
+`America/Sao_Paulo` or `Europe/Lisbon`) to the same `env` block. The name is validated
+at startup: an unknown one stops both the server and `sign-in` with a
+`ConfigurationError`. The resolved zone is logged at startup.
+
 ### Troubleshooting
 
 | Symptom | Cause |
 |---|---|
 | Tool fails with "no usable cached credential" | Step 3 was not completed, or the token was revoked. Run `sign-in` again. |
-| Server fails to start with `ConfigurationError` | `OUTLOOK_MCP_CLIENT_ID` is missing from the `env` block. |
+| Server fails to start with `ConfigurationError` | `OUTLOOK_MCP_CLIENT_ID` is missing from the `env` block, or `OUTLOOK_MCP_TIMEZONE` is not an IANA time zone name. |
 | Server does not appear in Claude Desktop | `uv` is not on the launcher's `PATH`; use an absolute path for `command`. |
 
 ## License
