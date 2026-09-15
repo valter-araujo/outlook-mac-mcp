@@ -112,6 +112,29 @@ uv run mypy
 uv run pytest
 ```
 
+### Integration tests
+
+Tests marked `@pytest.mark.integration` reach the real Microsoft Graph API and are
+deselected by default. They need a completed sign-in (see
+[Installation](#3-sign-in-once)) and the client id in the environment:
+
+```
+export OUTLOOK_MCP_CLIENT_ID=<your client id>
+uv run pytest -m integration
+```
+
+They read the signed-in mailbox but never write to it, and they provision their own
+fixtures: no particular message has to exist, and a test skips rather than fails if the
+mailbox yields nothing to work with.
+
+One of them is load-bearing rather than incidental. `test_search_query_live.py` checks
+that Graph parses a search term as literal text instead of as a query, by sending the
+same string in the safe form and in the form this project used to send, and comparing
+result counts against a sender taken from the mailbox itself. A unit test cannot show
+this: it can only assert the bytes we send, and every unit test passed while terms were
+in fact being executed as queries. Run it after touching anything about how a query is
+quoted, escaped or encoded.
+
 ## Installation
 
 ### 1. Register the app in Microsoft Entra ID
