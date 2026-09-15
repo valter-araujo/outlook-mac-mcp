@@ -4,8 +4,10 @@ from typing import Any
 
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
+from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.infrastructure.graph.errors import GraphResponseError
 
+TEXT_CONTENT_TYPE = "text"
 MESSAGE_FIELDS = (
     "id",
     "subject",
@@ -32,6 +34,27 @@ def to_email(message: Mapping[str, Any]) -> Email:
         has_attachments=_required_flag(message, "hasAttachments"),
         preview=_optional_text(message, "bodyPreview"),
     )
+
+
+def to_email_detail(message: Mapping[str, Any]) -> EmailDetail:
+    """Turn one Graph message resource into an EmailDetail, body included."""
+    return EmailDetail(email=to_email(message), body=_read_body(message))
+
+
+def _read_body(message: Mapping[str, Any]) -> str:
+    """Refuse a body that is not plain text.
+
+    The Prefer header asks Graph for text. If it answers with HTML anyway, returning it
+    as if it were text would hand markup to a model that was told it is reading text, so
+    the mismatch is surfaced instead of hidden. A message with no body at all is normal.
+    """
+    body = message.get("body")
+    if not isinstance(body, dict):
+        return ""
+    content_type = _optional_text(body, "contentType")
+    if content_type and content_type != TEXT_CONTENT_TYPE:
+        raise GraphResponseError(f"Graph returned a {content_type} body, not plain text")
+    return _optional_text(body, "content")
 
 
 def _read_sender(message: Mapping[str, Any]) -> EmailAddress:

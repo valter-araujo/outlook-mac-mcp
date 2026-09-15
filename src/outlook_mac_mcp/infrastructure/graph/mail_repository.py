@@ -1,14 +1,24 @@
 from collections.abc import Mapping
+from http import HTTPStatus
 from typing import Any
+from urllib.parse import quote
 
 from outlook_mac_mcp.domain.email import Email
+from outlook_mac_mcp.domain.email_detail import EmailDetail
+from outlook_mac_mcp.domain.errors import EmailNotFoundError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
-from outlook_mac_mcp.infrastructure.graph.email_mapper import MESSAGE_FIELDS, to_email
-from outlook_mac_mcp.infrastructure.graph.errors import GraphResponseError
+from outlook_mac_mcp.infrastructure.graph.email_mapper import (
+    MESSAGE_FIELDS,
+    to_email,
+    to_email_detail,
+)
+from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
 
 UNREAD_FILTER = "isRead eq false"
 NEWEST_FIRST_ORDER = "receivedDateTime desc"
+DETAIL_FIELDS = (*MESSAGE_FIELDS, "body")
+BODY_AS_TEXT_HEADER = {"Prefer": 'outlook.body-content-type="text"'}
 
 
 class GraphMailRepository:
@@ -39,6 +49,24 @@ class GraphMailRepository:
             },
         )
         return tuple(to_email(message) for message in _read_messages(payload))
+
+    def get_by_id(self, email_id: str) -> EmailDetail:
+        """The id is percent-encoded before it becomes a path segment.
+
+        Unlike the folder, it is caller-supplied: Graph ids can contain characters that
+        are significant in a URL, and an unencoded one could otherwise change the path.
+        """
+        try:
+            payload = self._client.get(
+                f"/me/messages/{quote(email_id, safe='')}",
+                {"$select": ",".join(DETAIL_FIELDS)},
+                BODY_AS_TEXT_HEADER,
+            )
+        except GraphRequestError as error:
+            if error.status_code == HTTPStatus.NOT_FOUND:
+                raise EmailNotFoundError(f"no email with id {email_id}") from error
+            raise
+        return to_email_detail(payload)
 
 
 def _read_messages(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:

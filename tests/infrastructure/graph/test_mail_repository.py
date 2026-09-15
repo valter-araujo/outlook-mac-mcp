@@ -7,6 +7,7 @@ import pytest
 import respx
 
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
+from outlook_mac_mcp.domain.errors import EmailNotFoundError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.infrastructure.graph.client import GRAPH_BASE_URL, GraphClient
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
@@ -14,6 +15,8 @@ from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailReposi
 
 INBOX_URL = f"{GRAPH_BASE_URL}/me/mailFolders/inbox/messages"
 ARCHIVE_URL = f"{GRAPH_BASE_URL}/me/mailFolders/archive/messages"
+MESSAGE_URL = f"{GRAPH_BASE_URL}/me/messages"
+AN_ID = "AAMkAGI2"
 
 
 def graph_message(message_id: str, *, received_at: str = "2026-09-14T12:30:00Z") -> dict[str, Any]:
@@ -143,3 +146,87 @@ def test_raises_when_the_collection_holds_something_that_is_not_a_message(
 
     with pytest.raises(GraphResponseError):
         repository.list_unread(FolderName.INBOX, limit=20)
+
+
+@respx.mock
+def test_asks_graph_for_the_body_as_plain_text(repository: GraphMailRepository) -> None:
+    route = respx.get(f"{MESSAGE_URL}/{AN_ID}").mock(
+        return_value=httpx.Response(200, json=graph_message(AN_ID))
+    )
+
+    repository.get_by_id(AN_ID)
+
+    assert route.calls.last.request.headers["Prefer"] == 'outlook.body-content-type="text"'
+
+
+@respx.mock
+def test_selects_the_body_alongside_the_listed_fields(repository: GraphMailRepository) -> None:
+    route = respx.get(f"{MESSAGE_URL}/{AN_ID}").mock(
+        return_value=httpx.Response(200, json=graph_message(AN_ID))
+    )
+
+    repository.get_by_id(AN_ID)
+
+    assert "body" in dict(route.calls.last.request.url.params)["$select"].split(",")
+
+
+@respx.mock
+def test_returns_the_email_with_its_body(repository: GraphMailRepository) -> None:
+    message = graph_message(AN_ID) | {"body": {"contentType": "text", "content": "The full text."}}
+    respx.get(f"{MESSAGE_URL}/{AN_ID}").mock(return_value=httpx.Response(200, json=message))
+
+    detail = repository.get_by_id(AN_ID)
+
+    assert detail.email.id == AN_ID
+    assert detail.body == "The full text."
+
+
+@respx.mock
+def test_percent_encodes_an_id_that_carries_url_characters(
+    repository: GraphMailRepository,
+) -> None:
+    route = respx.get(f"{MESSAGE_URL}/AAMk%2FGI%2B2%3D").mock(
+        return_value=httpx.Response(200, json=graph_message("AAMk/GI+2="))
+    )
+
+    repository.get_by_id("AAMk/GI+2=")
+
+    assert route.call_count == 1
+
+
+@respx.mock
+def test_an_id_that_looks_like_traversal_cannot_change_the_path(
+    repository: GraphMailRepository,
+) -> None:
+    elsewhere = respx.get(f"{GRAPH_BASE_URL}/me/mailFolders").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    respx.get(f"{MESSAGE_URL}/..%2F..%2FmailFolders").mock(
+        return_value=httpx.Response(200, json=graph_message("x"))
+    )
+
+    repository.get_by_id("../../mailFolders")
+
+    assert elsewhere.call_count == 0
+
+
+@respx.mock
+def test_raises_email_not_found_when_graph_answers_404(repository: GraphMailRepository) -> None:
+    respx.get(f"{MESSAGE_URL}/{AN_ID}").mock(
+        return_value=httpx.Response(404, json={"error": {"code": "ErrorItemNotFound"}})
+    )
+
+    with pytest.raises(EmailNotFoundError):
+        repository.get_by_id(AN_ID)
+
+
+@respx.mock
+def test_does_not_disguise_other_failures_as_not_found(
+    repository: GraphMailRepository,
+) -> None:
+    respx.get(f"{MESSAGE_URL}/{AN_ID}").mock(
+        return_value=httpx.Response(403, json={"error": {"code": "ErrorAccessDenied"}})
+    )
+
+    with pytest.raises(GraphRequestError):
+        repository.get_by_id(AN_ID)

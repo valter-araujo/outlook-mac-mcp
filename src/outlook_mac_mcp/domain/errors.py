@@ -8,3 +8,7 @@ class OutlookMcpError(Exception):
 
 class InvalidRequestError(OutlookMcpError):
     """A use case received a request that violates a domain rule."""
+
+
+class EmailNotFoundError(OutlookMcpError):
+    """The mailbox holds no message with the requested id."""
