@@ -82,6 +82,7 @@ include exact versions.
 | `list_upcoming_events` | 2026-09-15 | Returned the matching events, earliest first; confirmed both an all-day event and a timed event mapped correctly in the resolved time zone. |
 | `list_emails` | 2026-09-15 | `sort=oldest`, `limit=1` returned the folder's earliest email with an exact total; an exact-sender filter with `sort=newest` returned exactly one match, and Graph accepted the sender filter combined with `$orderby` without an `InefficientFilter` error. |
 | `count_emails` | 2026-09-15 | A received-time range covering one month returned an exact count. |
+| `top_senders` | 2026-09-15 | A full inbox scan hit the configured ceiling with `coverage_is_complete=false`; the client reported the partial coverage explicitly, as the description asks. |
 | `preview_event` | 2026-09-15 | Summary and token for a timed and an all-day event. |
 | `create_event` | 2026-09-15 | Created a timed event and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. |
 
