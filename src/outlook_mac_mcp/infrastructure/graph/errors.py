@@ -40,5 +40,9 @@ class GraphResponseError(GraphError):
     """Graph answered successfully but the payload was not shaped as expected."""
 
 
+class MalformedQueryError(GraphError):
+    """A query was about to be sent in a shape Graph is documented to reject."""
+
+
 class UnsupportedHostError(GraphError):
     """A request was about to leave the one host this adapter is allowed to reach."""
