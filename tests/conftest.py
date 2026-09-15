@@ -3,7 +3,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from outlook_mac_mcp.interface.mcp.observability import LOGGER_NAME
+from outlook_mac_mcp.logger import LOGGER_NAME
 
 
 @pytest.fixture

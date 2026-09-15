@@ -10,8 +10,8 @@ from time import perf_counter
 from uuid import uuid4
 
 from outlook_mac_mcp.domain.errors import OutlookMcpError
+from outlook_mac_mcp.logger import project_logger
 
-LOGGER_NAME = "outlook_mac_mcp"
 LOG_LEVEL_ENV_VAR = "OUTLOOK_MCP_LOG_LEVEL"
 DEFAULT_LOG_LEVEL = "INFO"
 TOOL_CALL_EVENT = "tool_call"
@@ -60,7 +60,7 @@ def configure_logging() -> None:
     """Send structured logs to stderr only; stdout belongs to the MCP transport."""
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(JsonFormatter())
-    logger = logging.getLogger(LOGGER_NAME)
+    logger = project_logger()
     logger.setLevel(os.environ.get(LOG_LEVEL_ENV_VAR, DEFAULT_LOG_LEVEL))
     logger.handlers = [handler]
     logger.propagate = False
@@ -68,8 +68,7 @@ def configure_logging() -> None:
 
 def record_startup(timezone_name: str) -> None:
     """Name the zone every calendar time will be expressed in; a zone is metadata, not content."""
-    logger = logging.getLogger(LOGGER_NAME)
-    logger.info(STARTUP_EVENT, extra={"fields": {"timezone": timezone_name}})
+    project_logger().info(STARTUP_EVENT, extra={"fields": {"timezone": timezone_name}})
 
 
 @contextmanager
@@ -106,6 +105,5 @@ def observed_tool_call(tool_name: str) -> Iterator[ToolCallOutcome]:
 
 
 def _write(record: ToolCallRecord) -> None:
-    logger = logging.getLogger(LOGGER_NAME)
     level = logging.INFO if record.succeeded else logging.ERROR
-    logger.log(level, TOOL_CALL_EVENT, extra={"fields": asdict(record)})
+    project_logger().log(level, TOOL_CALL_EVENT, extra={"fields": asdict(record)})
