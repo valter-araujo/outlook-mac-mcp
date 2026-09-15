@@ -66,8 +66,10 @@ therefore unsupported by the official add-in and the Microsoft 365 connector.
 - Errors: project exception hierarchy rooted at `OutlookMcpError`. Never catch bare
   `Exception`; never swallow errors; never return `None` to signal failure.
 - Early return over nesting; no `else` after `return`.
-- Full typing: `mypy --strict` with no ignores. `Any` is forbidden outside parsing of
-  external JSON, and even there it must be converted immediately.
+- Full typing: `mypy --strict`. No inline `# type: ignore`. A per-module
+  `ignore_missing_imports` is acceptable only for a third-party package that ships no
+  `py.typed`, and only with the reason recorded in `pyproject.toml`. `Any` is forbidden
+  outside parsing of external JSON, and even there it must be converted immediately.
 - `ruff` with default rules + isort + bugbear; `ruff format`. No dead code, no unused imports.
 - One thing per file: one use case per file, one entity per file. No file over ~200 lines
   without justification.
