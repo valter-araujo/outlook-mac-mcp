@@ -5,7 +5,10 @@ description = "MCP server for Microsoft Outlook personal accounts via Microsoft 
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "keyring>=25.7.0",
+    "msal>=1.38.0",
+]
 
 [dependency-groups]
 dev = [
@@ -34,6 +37,14 @@ strict = true
 python_version = "3.12"
 files = ["src", "tests"]
 warn_unreachable = true
+
+# msal ships no py.typed, and following its untyped source only trades the missing-stub
+# error for no-untyped-call on every constructor. The boundary is untyped either way; the
+# MsalApplication Protocol in authentication.py is what actually types it, and every msal
+# response is converted at the edge instead of travelling as Any.
+[[tool.mypy.overrides]]
+module = ["msal.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
