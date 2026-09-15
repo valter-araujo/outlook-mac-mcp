@@ -16,7 +16,7 @@ from outlook_mac_mcp.infrastructure.graph.email_mapper import (
     to_email_detail,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
-from outlook_mac_mcp.infrastructure.graph.pagination import read_next_link
+from outlook_mac_mcp.infrastructure.graph.pagination import read_items, read_next_link
 from outlook_mac_mcp.infrastructure.graph.search_match_count import count_search_matches
 from outlook_mac_mcp.infrastructure.graph.search_query import to_search_query
 
@@ -63,7 +63,7 @@ class GraphMailRepository:
                 "$count": "true",
             },
         )
-        emails = tuple(to_email(message) for message in _read_messages(payload))
+        emails = tuple(to_email(message) for message in read_items(payload))
         return Page(items=emails, total=_read_count(payload), total_is_exact=True)
 
     def get_by_id(self, email_id: str) -> EmailDetail:
@@ -102,21 +102,11 @@ class GraphMailRepository:
             path,
             {"$search": search, "$top": request.limit, "$select": ",".join(MESSAGE_FIELDS)},
         )
-        emails = tuple(to_email(message) for message in _read_messages(payload))
+        emails = tuple(to_email(message) for message in read_items(payload))
         if read_next_link(payload) is None:
             return Page(items=emails, total=len(emails), total_is_exact=True)
         count = count_search_matches(self._client, path, search)
         return Page(items=emails, total=count.total, total_is_exact=count.is_exact)
-
-
-def _read_messages(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
-    messages = payload.get("value")
-    if not isinstance(messages, list):
-        raise GraphResponseError("the message collection carried no value array")
-    for message in messages:
-        if not isinstance(message, dict):
-            raise GraphResponseError("the message collection held something other than a message")
-    return messages
 
 
 def _read_count(payload: Mapping[str, Any]) -> int:
