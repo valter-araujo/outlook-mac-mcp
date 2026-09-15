@@ -8,6 +8,12 @@ from outlook_mac_mcp.domain.search_scope import SearchScope
 MIN_TERM_LENGTH = 1
 MAX_TERM_LENGTH = 200
 
+# A double quote or a backslash cannot be carried safely into a Graph KQL phrase:
+# escaping them is not parsed reliably, and a term ending in a backslash was observed
+# to break the phrase open and match the entire mailbox. Refusing the two characters
+# costs a rare search and removes the escaping problem altogether.
+UNSUPPORTED_TERM_CHARACTERS = '"\\'
+
 
 @dataclass(frozen=True, slots=True)
 class SearchEmailsRequest:
@@ -27,4 +33,6 @@ class SearchEmailsRequest:
             raise InvalidRequestError(
                 f"term must be between {MIN_TERM_LENGTH} and {MAX_TERM_LENGTH} characters"
             )
+        if any(character in self.term for character in UNSUPPORTED_TERM_CHARACTERS):
+            raise InvalidRequestError("term must not contain a double quote or a backslash")
         ensure_limit_within_bounds(self.limit)
