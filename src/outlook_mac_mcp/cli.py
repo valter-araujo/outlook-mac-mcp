@@ -56,7 +56,7 @@ def _serve() -> int:
     settings = load_settings(os.environ)
     record_startup(settings.timezone.key)
     use_cases = build_use_cases(settings)
-    build_server(use_cases.list_unread_emails, use_cases.search_emails, use_cases.get_email).run()
+    build_server(use_cases).run()
     return EXIT_SUCCESS
 
 
