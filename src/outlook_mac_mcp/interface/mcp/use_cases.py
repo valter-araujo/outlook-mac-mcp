@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 
 from outlook_mac_mcp.application.get_email import GetEmail
+from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
+from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
 from outlook_mac_mcp.application.search_emails import SearchEmails
 
 
@@ -16,3 +18,5 @@ class UseCases:
     list_unread_emails: ListUnreadEmails
     search_emails: SearchEmails
     get_email: GetEmail
+    list_todays_events: ListTodaysEvents
+    list_upcoming_events: ListUpcomingEvents

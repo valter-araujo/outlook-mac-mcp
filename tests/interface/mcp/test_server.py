@@ -7,10 +7,7 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError, UnexpectedToolError
 from mcp_types import CallToolResult
 
-from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.limits import MAX_LIMIT, MIN_LIMIT
-from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
-from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
@@ -20,8 +17,8 @@ from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.infrastructure.graph.errors import NotAuthenticatedError
 from outlook_mac_mcp.interface.mcp.observability import configure_logging
 from outlook_mac_mcp.interface.mcp.server import LIST_UNREAD_EMAILS_TOOL, build_server
-from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
+from tests.fakes.use_case_bundles import mail_only_use_cases
 
 pytestmark = pytest.mark.anyio
 
@@ -61,16 +58,12 @@ def server_with(*emails: Email) -> MCPServer:
     repository = InMemoryMailRepository()
     for email in emails:
         repository.add(FolderName.INBOX, email)
-    return build_server(
-        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
-    )
+    return build_server(mail_only_use_cases(repository))
 
 
 def server_failing_with(error: Exception) -> MCPServer:
     repository = FailingMailRepository(error)
-    return build_server(
-        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
-    )
+    return build_server(mail_only_use_cases(repository))
 
 
 async def call_page(server: MCPServer, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -138,9 +131,7 @@ async def test_passes_the_folder_and_limit_through_to_the_use_case() -> None:
     repository = InMemoryMailRepository()
     repository.add(FolderName.ARCHIVE, make_email("archived"))
     repository.add(FolderName.INBOX, make_email("inboxed"))
-    server = build_server(
-        UseCases(ListUnreadEmails(repository), SearchEmails(repository), GetEmail(repository))
-    )
+    server = build_server(mail_only_use_cases(repository))
 
     items = await call_tool(server, {"folder": "archive", "limit": 1})
 

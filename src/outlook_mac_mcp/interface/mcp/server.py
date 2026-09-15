@@ -8,6 +8,7 @@ from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.search_scope import SearchScope
+from outlook_mac_mcp.interface.mcp.calendar_tools import register_calendar_tools
 from outlook_mac_mcp.interface.mcp.email_detail_view import EmailDetailView
 from outlook_mac_mcp.interface.mcp.email_page_view import EmailPageView
 from outlook_mac_mcp.interface.mcp.get_email_input import EmailId, GetEmailInput
@@ -24,32 +25,18 @@ from outlook_mac_mcp.interface.mcp.search_emails_input import (
     SearchLimit,
     Term,
 )
+from outlook_mac_mcp.interface.mcp.totals_guidance import totals_guidance
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 
 SERVER_NAME = "outlook-mac-mcp"
 SERVER_VERSION = "0.1.0"
 
 
-def _totals_guidance(narrowing_advice: str) -> str:
-    """The one wording every listing tool uses to make the client report its totals.
-
-    A model that sees a full page and no total tends to treat it as the whole folder,
-    so the description spells out both the sentence to say and what to suggest next.
-    """
-    return (
-        "The output carries returned, total and total_is_exact. Always tell the user "
-        '"showing N of M", where N is returned and M is total, or "showing N of at least '
-        'M" when total_is_exact is false. When M exceeds N, say that more exist than '
-        f"were shown and suggest narrowing the scope: {narrowing_advice}. Never conclude "
-        "that something is absent from a page that does not hold every match."
-    )
-
-
 LIST_UNREAD_EMAILS_TOOL = "list_unread_emails"
 LIST_UNREAD_EMAILS_DESCRIPTION = (
     "List unread emails from a mailbox folder, newest first. "
     "Returns metadata and a short preview, never the full body. "
-    + _totals_guidance("a higher limit, or a folder with less unread mail")
+    + totals_guidance("a higher limit, or a folder with less unread mail")
 )
 SEARCH_EMAILS_TOOL = "search_emails"
 SEARCH_EMAILS_DESCRIPTION = (
@@ -61,7 +48,7 @@ SEARCH_EMAILS_DESCRIPTION = (
     "The term is matched as literal text, so query operators written into it are "
     "searched for, not obeyed. "
     "Returns metadata and a short preview; use get_email for a full body. "
-    + _totals_guidance("a more specific term, the subject or sender scope, or another folder")
+    + totals_guidance("a more specific term, the subject or sender scope, or another folder")
 )
 GET_EMAIL_TOOL = "get_email"
 GET_EMAIL_DESCRIPTION = (
@@ -78,6 +65,7 @@ def build_server(use_cases: UseCases) -> MCPServer:
     _register_list_unread_emails(server, use_cases.list_unread_emails)
     _register_search_emails(server, use_cases.search_emails)
     _register_get_email(server, use_cases.get_email)
+    register_calendar_tools(server, use_cases)
     return server
 
 
