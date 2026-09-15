@@ -38,8 +38,15 @@ class GraphClient:
         self._token_provider = token_provider
         self._http_client = http_client if http_client is not None else _build_http_client()
 
-    def get(self, path: str, parameters: Mapping[str, str | int]) -> Mapping[str, Any]:
-        request = self._http_client.build_request("GET", _relative_path(path), params=parameters)
+    def get(
+        self,
+        path: str,
+        parameters: Mapping[str, str | int],
+        headers: Mapping[str, str] | None = None,
+    ) -> Mapping[str, Any]:
+        request = self._http_client.build_request(
+            "GET", _relative_path(path), params=parameters, headers=headers
+        )
         _reject_foreign_host(request.url)
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
         return _read_payload(self._http_client.send(request))
@@ -70,7 +77,7 @@ def _reject_foreign_host(url: httpx.URL) -> None:
 
 def _read_payload(response: httpx.Response) -> Mapping[str, Any]:
     if not response.is_success:
-        raise GraphRequestError(_describe_failure(response))
+        raise GraphRequestError(_describe_failure(response), response.status_code)
     payload = _decode_json(response)
     if not isinstance(payload, dict):
         raise GraphResponseError("Graph returned a JSON value that is not an object")

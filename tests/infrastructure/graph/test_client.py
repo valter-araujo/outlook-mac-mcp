@@ -137,3 +137,31 @@ def test_does_not_follow_a_redirect_to_another_host(client: GraphClient) -> None
         client.get(MESSAGES_PATH, {})
 
     assert elsewhere.call_count == 0
+
+
+@respx.mock
+def test_sends_the_headers_it_is_given(client: GraphClient) -> None:
+    route = respx.get(MESSAGES_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    client.get(MESSAGES_PATH, {}, {"Prefer": 'outlook.body-content-type="text"'})
+
+    assert route.calls.last.request.headers["Prefer"] == 'outlook.body-content-type="text"'
+
+
+@respx.mock
+def test_still_sends_the_bearer_token_when_headers_are_given(client: GraphClient) -> None:
+    route = respx.get(MESSAGES_URL).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    client.get(MESSAGES_PATH, {}, {"Prefer": "anything"})
+
+    assert route.calls.last.request.headers["Authorization"] == "Bearer a-token"
+
+
+@respx.mock
+def test_reports_the_failing_status_on_the_error(client: GraphClient) -> None:
+    respx.get(MESSAGES_URL).mock(return_value=httpx.Response(404, json={}))
+
+    with pytest.raises(GraphRequestError) as failure:
+        client.get(MESSAGES_PATH, {})
+
+    assert failure.value.status_code == 404
