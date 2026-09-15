@@ -1,6 +1,8 @@
+from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.get_email import GetEmail
+from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
@@ -35,6 +37,8 @@ def build_use_cases(settings: Settings) -> UseCases:
         get_email=GetEmail(mail),
         list_todays_events=ListTodaysEvents(calendar, clock),
         list_upcoming_events=ListUpcomingEvents(calendar, clock),
+        list_emails=ListEmails(mail),
+        count_emails=CountEmails(mail),
         calendar_write=write,
     )
 

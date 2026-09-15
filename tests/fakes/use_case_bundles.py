@@ -2,9 +2,11 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from outlook_mac_mcp.application.clock import Clock
+from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.get_email import GetEmail
+from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
@@ -45,6 +47,8 @@ def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
         get_email=bundle.get_email,
         list_todays_events=bundle.list_todays_events,
         list_upcoming_events=bundle.list_upcoming_events,
+        list_emails=bundle.list_emails,
+        count_emails=bundle.count_emails,
         calendar_write=write,
     )
 
@@ -56,4 +60,6 @@ def _bundle(mail: MailRepository, calendar: CalendarRepository, clock: Clock) ->
         get_email=GetEmail(mail),
         list_todays_events=ListTodaysEvents(calendar, clock),
         list_upcoming_events=ListUpcomingEvents(calendar, clock),
+        list_emails=ListEmails(mail),
+        count_emails=CountEmails(mail),
     )

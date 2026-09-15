@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
+from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.get_email import GetEmail
+from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
@@ -21,6 +23,8 @@ class UseCases:
     get_email: GetEmail
     list_todays_events: ListTodaysEvents
     list_upcoming_events: ListUpcomingEvents
+    list_emails: ListEmails
+    count_emails: CountEmails
     # None when the write flag is off: the tools then do not exist, rather than exist
     # and fail, so a client cannot even be tempted to call them.
     calendar_write: CalendarWriteUseCases | None = None
