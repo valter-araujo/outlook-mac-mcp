@@ -32,3 +32,7 @@ class GraphRequestError(GraphError):
 
 class GraphResponseError(GraphError):
     """Graph answered successfully but the payload was not shaped as expected."""
+
+
+class UnsupportedHostError(GraphError):
+    """A request was about to leave the one host this adapter is allowed to reach."""
