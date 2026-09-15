@@ -1,3 +1,4 @@
+import os
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -6,16 +7,15 @@ from typing import Any
 import pytest
 
 from outlook_mac_mcp.infrastructure.graph.authentication import (
-    CLIENT_ID_ENV_VAR,
     SCOPES,
     DeviceCodeAuthenticator,
     DeviceCodePrompt,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import (
     AuthenticationError,
-    ConfigurationError,
     NotAuthenticatedError,
 )
+from outlook_mac_mcp.infrastructure.settings import load_settings
 
 AN_ACCOUNT = {"username": "someone@example.com"}
 RESERVED_SCOPES = ("offline_access", "openid", "profile")
@@ -158,18 +158,9 @@ def test_sign_in_raises_when_the_user_never_completes_the_flow() -> None:
         authenticator.sign_in(lambda prompt: None)
 
 
-def test_from_environment_raises_when_the_client_id_is_missing(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv(CLIENT_ID_ENV_VAR, raising=False)
-
-    with pytest.raises(ConfigurationError):
-        DeviceCodeAuthenticator.from_environment()
-
-
 @pytest.mark.integration
 def test_signs_in_against_the_real_identity_platform() -> None:
-    authenticator = DeviceCodeAuthenticator.from_environment()
+    authenticator = DeviceCodeAuthenticator.from_settings(load_settings(os.environ))
 
     authenticator.sign_in(lambda prompt: print(prompt, file=sys.stderr))
 

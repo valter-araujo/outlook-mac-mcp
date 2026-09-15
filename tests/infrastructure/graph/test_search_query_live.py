@@ -17,6 +17,7 @@ Measured 2026-09-14 against a personal Outlook.com mailbox:
 Run with: uv run pytest -m integration
 """
 
+import os
 from collections.abc import Mapping
 from typing import Any
 
@@ -29,6 +30,7 @@ from outlook_mac_mcp.infrastructure.graph.authentication import DeviceCodeAuthen
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailRepository
 from outlook_mac_mcp.infrastructure.graph.search_query import to_search_query
+from outlook_mac_mcp.infrastructure.settings import load_settings
 
 pytestmark = pytest.mark.integration
 
@@ -41,7 +43,7 @@ CANDIDATE_TERMS = ("http", "the", "email", "de")
 
 
 def graph_client() -> GraphClient:
-    return GraphClient(DeviceCodeAuthenticator.from_environment())
+    return GraphClient(DeviceCodeAuthenticator.from_settings(load_settings(os.environ)))
 
 
 def messages_matching(client: GraphClient, search_value: str) -> list[Mapping[str, Any]]:

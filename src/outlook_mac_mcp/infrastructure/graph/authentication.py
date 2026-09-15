@@ -1,4 +1,3 @@
-import os
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -7,12 +6,11 @@ from msal import PublicClientApplication
 
 from outlook_mac_mcp.infrastructure.graph.errors import (
     AuthenticationError,
-    ConfigurationError,
     NotAuthenticatedError,
 )
 from outlook_mac_mcp.infrastructure.graph.token_cache import KeyringTokenCache, TokenCache
+from outlook_mac_mcp.infrastructure.settings import Settings
 
-CLIENT_ID_ENV_VAR = "OUTLOOK_MCP_CLIENT_ID"
 CONSUMERS_AUTHORITY = "https://login.microsoftonline.com/consumers"
 
 # The reserved scopes (offline_access, openid, profile) are absent on purpose: MSAL
@@ -65,13 +63,10 @@ class DeviceCodeAuthenticator:
         self._token_cache = token_cache
 
     @classmethod
-    def from_environment(cls) -> "DeviceCodeAuthenticator":
-        client_id = os.environ.get(CLIENT_ID_ENV_VAR, "")
-        if not client_id:
-            raise ConfigurationError(f"{CLIENT_ID_ENV_VAR} is not set")
+    def from_settings(cls, settings: Settings) -> "DeviceCodeAuthenticator":
         token_cache = KeyringTokenCache()
         application = PublicClientApplication(
-            client_id,
+            settings.client_id,
             authority=CONSUMERS_AUTHORITY,
             token_cache=token_cache.msal_cache,
         )
