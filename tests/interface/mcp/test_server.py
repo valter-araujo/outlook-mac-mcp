@@ -8,10 +8,12 @@ from mcp.server.mcpserver.exceptions import ToolError, UnexpectedToolError
 from mcp_types import CallToolResult
 
 from outlook_mac_mcp.application.limits import MAX_LIMIT, MIN_LIMIT
+from outlook_mac_mcp.application.list_emails_request import ListEmailsRequest
 from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.email_detail import EmailDetail
+from outlook_mac_mcp.domain.email_filters import EmailFilters
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.infrastructure.graph.errors import NotAuthenticatedError
@@ -39,6 +41,12 @@ class FailingMailRepository:
         raise self._error
 
     def search(self, request: SearchEmailsRequest) -> Page[Email]:
+        raise self._error
+
+    def list_matching(self, request: ListEmailsRequest) -> Page[Email]:
+        raise self._error
+
+    def count_matching(self, filters: EmailFilters) -> int:
         raise self._error
 
 
