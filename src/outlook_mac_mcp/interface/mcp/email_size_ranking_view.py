@@ -35,6 +35,12 @@ class EmailSizeRankingView(BaseModel):
 
     items: list[EmailSizeView] = Field(description="Emails, largest first.")
     scanned: int = Field(description="How many emails were checked to build the ranking.")
+    skipped: int = Field(
+        description=(
+            "Of the scanned emails, how many carried no determinable size and were "
+            "excluded from the ranking."
+        )
+    )
     total: int = Field(description="Exactly how many emails match the filters.")
     coverage_is_complete: bool = Field(
         description=(
@@ -48,6 +54,7 @@ class EmailSizeRankingView(BaseModel):
         return cls(
             items=[EmailSizeView.from_email_size(item) for item in ranking.items],
             scanned=ranking.scanned,
+            skipped=ranking.skipped,
             total=ranking.total,
             coverage_is_complete=ranking.coverage_is_complete,
         )

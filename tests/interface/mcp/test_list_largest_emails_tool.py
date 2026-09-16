@@ -40,7 +40,8 @@ def make_email(email_id: str, *, days_ago: int = 0, is_read: bool = False) -> Em
     )
 
 
-def server_with(*sized: tuple[Email, int]) -> MCPServer:
+def server_with(*sized: tuple[Email, int | None]) -> MCPServer:
+    """A size of None stands in for a message with no size property at all."""
     repository = InMemoryMailRepository()
     for email, size_bytes in sized:
         repository.add(FolderName.INBOX, email, size_bytes=size_bytes)
@@ -84,8 +85,20 @@ async def test_ranks_emails_largest_first_with_their_details() -> None:
     assert huge["sender_name"] == "Ana Lima"
     assert huge["size_bytes"] == 90_000
     assert ranking["scanned"] == 2
+    assert ranking["skipped"] == 0
     assert ranking["total"] == 2
     assert ranking["coverage_is_complete"] is True
+
+
+async def test_an_email_with_no_known_size_is_skipped_not_ranked() -> None:
+    server = server_with((make_email("sized"), 100), (make_email("unsized", days_ago=1), None))
+
+    ranking = await call(server, {})
+
+    assert [item["id"] for item in ranking["items"]] == ["sized"]
+    assert ranking["skipped"] == 1
+    assert ranking["scanned"] == 2
+    assert ranking["total"] == 2
 
 
 async def test_applies_the_filters_and_the_limit() -> None:
@@ -107,7 +120,13 @@ async def test_applies_the_filters_and_the_limit() -> None:
 async def test_ranks_nothing_on_an_empty_folder() -> None:
     ranking = await call(server_with(), {})
 
-    assert ranking == {"items": [], "scanned": 0, "total": 0, "coverage_is_complete": True}
+    assert ranking == {
+        "items": [],
+        "scanned": 0,
+        "skipped": 0,
+        "total": 0,
+        "coverage_is_complete": True,
+    }
 
 
 async def test_rejects_a_date_bound_without_an_offset() -> None:
@@ -136,6 +155,7 @@ async def test_says_size_comes_from_an_extended_property_and_coverage_can_be_par
     assert "ONLY the scanned emails" in description
     assert "received_after" in description
     assert "coverage_is_complete" in description
+    assert "skipped" in description
 
 
 async def test_logs_the_number_of_ranked_emails_and_no_subject_or_size(
