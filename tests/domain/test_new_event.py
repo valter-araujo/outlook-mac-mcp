@@ -7,6 +7,7 @@ from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.errors import InvalidRequestError
 from outlook_mac_mcp.domain.new_event import (
     MAX_ATTENDEES,
+    MAX_BODY_LENGTH,
     MAX_SUBJECT_LENGTH,
     MIN_SUBJECT_LENGTH,
     NewEvent,
@@ -75,3 +76,18 @@ def test_accepts_an_all_day_event_running_midnight_to_midnight() -> None:
 def test_rejects_an_all_day_event_with_a_clock_time() -> None:
     with pytest.raises(InvalidRequestError):
         NewEvent(subject="Offsite", start=NINE, end=MIDNIGHT + timedelta(days=1), is_all_day=True)
+
+
+def test_defaults_to_no_body() -> None:
+    assert NewEvent(subject="Planning", start=NINE, end=TEN).body == ""
+
+
+def test_accepts_a_body_at_the_maximum_length() -> None:
+    event = NewEvent(subject="Planning", start=NINE, end=TEN, body="a" * MAX_BODY_LENGTH)
+
+    assert len(event.body) == MAX_BODY_LENGTH
+
+
+def test_rejects_a_body_beyond_the_maximum_length() -> None:
+    with pytest.raises(InvalidRequestError):
+        NewEvent(subject="Planning", start=NINE, end=TEN, body="a" * (MAX_BODY_LENGTH + 1))
