@@ -23,6 +23,7 @@ from outlook_mac_mcp.infrastructure.graph.email_size_scan import scan_email_size
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
 from outlook_mac_mcp.infrastructure.graph.mail_query import count_query, list_query
 from outlook_mac_mcp.infrastructure.graph.pagination import read_items, read_next_link
+from outlook_mac_mcp.infrastructure.graph.preferences import text_body_preference
 from outlook_mac_mcp.infrastructure.graph.search_match_count import count_search_matches
 from outlook_mac_mcp.infrastructure.graph.search_query import to_search_query
 from outlook_mac_mcp.infrastructure.graph.sender_scan import scan_senders
@@ -34,7 +35,6 @@ ID_ONLY_SELECT = "id"
 # The smallest page Graph accepts; a count wants the number, not the messages.
 COUNT_PAGE_SIZE = 1
 DETAIL_FIELDS = (*MESSAGE_FIELDS, "body")
-BODY_AS_TEXT_HEADER = {"Prefer": 'outlook.body-content-type="text"'}
 
 # Graph answers 400 with this code for an id that is not a well-formed message id, and
 # 404 only for a well-formed id that no longer resolves. Matching the code rather than
@@ -86,7 +86,7 @@ class GraphMailRepository:
             payload = self._client.get(
                 f"/me/messages/{quote(email_id, safe='')}",
                 {"$select": ",".join(DETAIL_FIELDS)},
-                BODY_AS_TEXT_HEADER,
+                text_body_preference(),
             )
         except GraphRequestError as error:
             if error.error_code == MALFORMED_ID_ERROR_CODE:
