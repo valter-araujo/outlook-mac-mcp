@@ -84,8 +84,8 @@ include exact versions.
 | `count_emails` | 2026-09-15 | A received-time range covering one month returned an exact count. |
 | `top_senders` | 2026-09-15 | A full inbox scan hit the configured ceiling with `coverage_is_complete=false`; the client reported the partial coverage explicitly, as the description asks. |
 | `list_largest_emails` | 2026-09-16 | Returned ranked results with real sizes from the extended property, `skipped` near zero. |
-| `preview_event` | 2026-09-15 | Summary and token for a timed and an all-day event. |
-| `create_event` | 2026-09-15 | Created a timed event and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. |
+| `preview_event` | 2026-09-15, 2026-09-16 | Summary and token for a timed and an all-day event; a body well under the truncation threshold showed in full, verbatim, in the preview. |
+| `create_event` | 2026-09-15, 2026-09-16 | Created a timed event and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. A body from the preview was written to the created event correctly. |
 
 Every tool shipped so far has been validated against a real mailbox on the environment
 above. Search quoting is additionally covered by a live positive-control check, see
