@@ -5,6 +5,7 @@ from outlook_mac_mcp.application.search_emails_request import SearchEmailsReques
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.sender_scan import SenderScan
@@ -47,6 +48,13 @@ class MailRepository(Protocol):
 
     def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
         """Return the sender of each email matching `filters`, at most `ceiling` of them.
+
+        The scan's total is exact even when the walk stopped at the ceiling.
+        """
+        ...
+
+    def scan_email_sizes(self, filters: EmailFilters, ceiling: int) -> EmailSizeScan:
+        """Return the size of each email matching `filters`, at most `ceiling` of them.
 
         The scan's total is exact even when the walk stopped at the ceiling.
         """

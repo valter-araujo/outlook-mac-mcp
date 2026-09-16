@@ -5,6 +5,8 @@ from outlook_mac_mcp.application.search_emails_request import SearchEmailsReques
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_size import EmailSize
+from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.errors import EmailNotFoundError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
@@ -22,10 +24,12 @@ class InMemoryMailRepository:
     def __init__(self) -> None:
         self._emails: dict[FolderName, list[Email]] = defaultdict(list)
         self._bodies: dict[str, str] = {}
+        self._sizes: dict[str, int] = {}
 
-    def add(self, folder: FolderName, email: Email, body: str = "") -> None:
+    def add(self, folder: FolderName, email: Email, body: str = "", size_bytes: int = 0) -> None:
         self._emails[folder].append(email)
         self._bodies[email.id] = body
+        self._sizes[email.id] = size_bytes
 
     def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
         unread = [email for email in self._emails[folder] if not email.is_read]
@@ -61,6 +65,27 @@ class InMemoryMailRepository:
         )
         return SenderScan(
             senders=tuple(email.sender for email in matching[:ceiling]),
+            total=len(matching),
+            coverage_is_complete=len(matching) <= ceiling,
+        )
+
+    def scan_email_sizes(self, filters: EmailFilters, ceiling: int) -> EmailSizeScan:
+        """Same walk as scan_senders, carrying each email's recorded size instead."""
+        matching = sorted(
+            self._matching(filters), key=lambda email: email.received_at, reverse=True
+        )
+        items = tuple(
+            EmailSize(
+                id=email.id,
+                subject=email.subject,
+                sender=email.sender,
+                received_at=email.received_at,
+                size_bytes=self._sizes.get(email.id, 0),
+            )
+            for email in matching[:ceiling]
+        )
+        return EmailSizeScan(
+            items=items,
             total=len(matching),
             coverage_is_complete=len(matching) <= ceiling,
         )

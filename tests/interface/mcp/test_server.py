@@ -14,6 +14,7 @@ from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.sender_scan import SenderScan
@@ -51,6 +52,9 @@ class FailingMailRepository:
         raise self._error
 
     def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
+        raise self._error
+
+    def scan_email_sizes(self, filters: EmailFilters, ceiling: int) -> EmailSizeScan:
         raise self._error
 
 
