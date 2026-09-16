@@ -8,6 +8,7 @@ from outlook_mac_mcp.application.search_emails_request import SearchEmailsReques
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
@@ -18,6 +19,7 @@ from outlook_mac_mcp.infrastructure.graph.email_mapper import (
     to_email,
     to_email_detail,
 )
+from outlook_mac_mcp.infrastructure.graph.email_size_scan import scan_email_sizes
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
 from outlook_mac_mcp.infrastructure.graph.mail_query import count_query, list_query
 from outlook_mac_mcp.infrastructure.graph.pagination import read_items, read_next_link
@@ -118,6 +120,9 @@ class GraphMailRepository:
 
     def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
         return scan_senders(self._client, _messages_path(filters.folder), filters, ceiling)
+
+    def scan_email_sizes(self, filters: EmailFilters, ceiling: int) -> EmailSizeScan:
+        return scan_email_sizes(self._client, _messages_path(filters.folder), filters, ceiling)
 
     def search(self, request: SearchEmailsRequest) -> Page[Email]:
         """No $orderby: Graph rejects it alongside $search, so results are relevance-ranked.
