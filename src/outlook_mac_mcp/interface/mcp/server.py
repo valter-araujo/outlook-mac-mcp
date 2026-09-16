@@ -37,7 +37,7 @@ from outlook_mac_mcp.interface.mcp.totals_guidance import totals_guidance
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 
 SERVER_NAME = "outlook-mac-mcp"
-SERVER_VERSION = "0.3.0"
+SERVER_VERSION = "0.3.1"
 
 
 LIST_UNREAD_EMAILS_TOOL = "list_unread_emails"
