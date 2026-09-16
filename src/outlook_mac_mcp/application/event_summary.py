@@ -4,6 +4,11 @@ from outlook_mac_mcp.domain.new_event import NewEvent
 
 DAY_FORMAT = "%a %d %b %Y"
 CLOCK_FORMAT = "%H:%M"
+# How much of the body appears verbatim in the one-line summary before it is truncated.
+# The preview -> token -> create contract only holds if the preview shows everything
+# that will be written, so a body past this length is still shown in full, just with an
+# explicit character count in place of the part that does not fit on one line.
+MAX_BODY_IN_SUMMARY = 500
 
 
 def describe(event: NewEvent) -> str:
@@ -17,7 +22,16 @@ def describe(event: NewEvent) -> str:
         parts.append(f"at {event.location}")
     if event.attendees:
         parts.append("with " + ", ".join(attendee.address for attendee in event.attendees))
+    if event.body:
+        parts.append(_body_summary(event.body))
     return "; ".join(parts)
+
+
+def _body_summary(body: str) -> str:
+    if len(body) <= MAX_BODY_IN_SUMMARY:
+        return f'body: "{body}"'
+    truncated = body[:MAX_BODY_IN_SUMMARY]
+    return f'body: "{truncated}…" ({len(body)} characters total, truncated for this summary)'
 
 
 def _when(event: NewEvent) -> str:

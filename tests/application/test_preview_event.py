@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from outlook_mac_mcp.application.draft_store import DraftStore
+from outlook_mac_mcp.application.event_summary import MAX_BODY_IN_SUMMARY
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.new_event import NewEvent
@@ -71,3 +72,45 @@ def test_describes_a_multi_day_all_day_event_with_its_last_day_inclusive() -> No
     summary = PreviewEvent(DraftStore()).execute(event).summary
 
     assert summary == "Offsite; all day from Tue 15 Sep 2026 to Thu 17 Sep 2026"
+
+
+def test_omits_the_body_clause_when_there_is_no_body() -> None:
+    event = NewEvent(subject="Planning", start=NINE, end=NINE + timedelta(hours=1))
+
+    summary = PreviewEvent(DraftStore()).execute(event).summary
+
+    assert "body" not in summary
+
+
+def test_includes_a_short_body_in_full() -> None:
+    event = NewEvent(
+        subject="Planning", start=NINE, end=NINE + timedelta(hours=1), body="Bring the deck."
+    )
+
+    summary = PreviewEvent(DraftStore()).execute(event).summary
+
+    assert summary.endswith('body: "Bring the deck."')
+
+
+def test_includes_a_body_at_exactly_the_summary_limit_in_full() -> None:
+    body = "a" * MAX_BODY_IN_SUMMARY
+    event = NewEvent(subject="Planning", start=NINE, end=NINE + timedelta(hours=1), body=body)
+
+    summary = PreviewEvent(DraftStore()).execute(event).summary
+
+    assert summary.endswith(f'body: "{body}"')
+    assert "truncated" not in summary
+
+
+def test_truncates_a_long_body_with_an_explicit_character_count() -> None:
+    body = "a" * (MAX_BODY_IN_SUMMARY + 1)
+    event = NewEvent(subject="Planning", start=NINE, end=NINE + timedelta(hours=1), body=body)
+
+    summary = PreviewEvent(DraftStore()).execute(event).summary
+
+    assert f'body: "{"a" * MAX_BODY_IN_SUMMARY}…"' in summary
+    assert f"{len(body)} characters total" in summary
+    assert "truncated" in summary
+    # The preview -> token -> create contract only holds if nothing beyond the
+    # truncation point silently vanishes from what the user is shown as a count.
+    assert body not in summary
