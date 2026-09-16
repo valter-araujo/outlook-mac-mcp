@@ -8,6 +8,7 @@ from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_folders import ListFolders
+from outlook_mac_mcp.application.list_largest_emails import ListLargestEmails
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
@@ -57,6 +58,7 @@ def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
         list_emails=bundle.list_emails,
         count_emails=bundle.count_emails,
         top_senders=bundle.top_senders,
+        list_largest_emails=bundle.list_largest_emails,
         list_folders=bundle.list_folders,
         search_contacts=bundle.search_contacts,
         calendar_write=write,
@@ -75,6 +77,7 @@ def folders_use_cases(repository: MailFolderRepository) -> UseCases:
         list_emails=bundle.list_emails,
         count_emails=bundle.count_emails,
         top_senders=bundle.top_senders,
+        list_largest_emails=bundle.list_largest_emails,
         list_folders=ListFolders(repository),
         search_contacts=SearchContacts(InMemoryContactRepository()),
     )
@@ -92,6 +95,7 @@ def contacts_use_cases(repository: ContactRepository) -> UseCases:
         list_emails=bundle.list_emails,
         count_emails=bundle.count_emails,
         top_senders=bundle.top_senders,
+        list_largest_emails=bundle.list_largest_emails,
         list_folders=bundle.list_folders,
         search_contacts=SearchContacts(repository),
     )
@@ -107,6 +111,7 @@ def _bundle(mail: MailRepository, calendar: CalendarRepository, clock: Clock) ->
         list_emails=ListEmails(mail),
         count_emails=CountEmails(mail),
         top_senders=TopSenders(mail),
+        list_largest_emails=ListLargestEmails(mail),
         list_folders=ListFolders(InMemoryMailFolderRepository()),
         search_contacts=SearchContacts(InMemoryContactRepository()),
     )

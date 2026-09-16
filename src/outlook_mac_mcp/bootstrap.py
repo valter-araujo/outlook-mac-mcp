@@ -4,6 +4,7 @@ from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_folders import ListFolders
+from outlook_mac_mcp.application.list_largest_emails import ListLargestEmails
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
@@ -47,6 +48,7 @@ def build_use_cases(settings: Settings) -> UseCases:
         list_emails=ListEmails(mail),
         count_emails=CountEmails(mail),
         top_senders=TopSenders(mail),
+        list_largest_emails=ListLargestEmails(mail),
         list_folders=ListFolders(folders),
         search_contacts=SearchContacts(contacts),
         calendar_write=write,
