@@ -40,3 +40,23 @@ def required_datetime(resource: Mapping[str, Any], field: str) -> datetime:
     if value.tzinfo is None:
         raise GraphResponseError(f"{field} carried no time zone")
     return value
+
+
+TEXT_CONTENT_TYPE = "text"
+
+
+def optional_text_body(resource: Mapping[str, Any], field: str = "body") -> str:
+    """Read a Graph `{contentType, content}` body object as plain text.
+
+    Refuses a body that is not plain text: returning HTML as if it were text would hand
+    markup to a reader that was told it is reading text, so the mismatch is surfaced
+    instead of hidden. A resource with no body at all, or a resource this field was
+    never requested for, is normal and reads as empty rather than an error.
+    """
+    body = resource.get(field)
+    if not isinstance(body, dict):
+        return ""
+    content_type = optional_text(body, "contentType")
+    if content_type and content_type != TEXT_CONTENT_TYPE:
+        raise GraphResponseError(f"Graph returned a {content_type} body, not plain text")
+    return optional_text(body, "content")
