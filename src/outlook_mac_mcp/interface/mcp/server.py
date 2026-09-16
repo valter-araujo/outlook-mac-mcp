@@ -13,6 +13,7 @@ from outlook_mac_mcp.interface.mcp.calendar_write_tools import register_calendar
 from outlook_mac_mcp.interface.mcp.email_detail_view import EmailDetailView
 from outlook_mac_mcp.interface.mcp.email_page_view import EmailPageView
 from outlook_mac_mcp.interface.mcp.get_email_input import EmailId, GetEmailInput
+from outlook_mac_mcp.interface.mcp.list_folders_tool import register_list_folders_tool
 from outlook_mac_mcp.interface.mcp.list_unread_emails_input import (
     Folder,
     Limit,
@@ -77,6 +78,7 @@ def build_server(use_cases: UseCases) -> MCPServer:
     _register_get_email(server, use_cases.get_email)
     register_mail_listing_tools(server, use_cases)
     register_top_senders_tool(server, use_cases.top_senders)
+    register_list_folders_tool(server, use_cases.list_folders)
     register_calendar_tools(server, use_cases)
     if use_cases.calendar_write is not None:
         register_calendar_write_tools(server, use_cases.calendar_write)

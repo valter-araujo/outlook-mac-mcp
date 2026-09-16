@@ -3,6 +3,7 @@ from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_emails import ListEmails
+from outlook_mac_mcp.application.list_folders import ListFolders
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
@@ -13,6 +14,7 @@ from outlook_mac_mcp.infrastructure.graph.authentication import DeviceCodeAuthen
 from outlook_mac_mcp.infrastructure.graph.calendar_repository import GraphCalendarRepository
 from outlook_mac_mcp.infrastructure.graph.calendar_writer import GraphCalendarWriter
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
+from outlook_mac_mcp.infrastructure.graph.mail_folder_repository import GraphMailFolderRepository
 from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailRepository
 from outlook_mac_mcp.infrastructure.settings import Settings
 from outlook_mac_mcp.infrastructure.system_clock import SystemClock
@@ -29,6 +31,7 @@ def build_use_cases(settings: Settings) -> UseCases:
     """
     client = GraphClient(DeviceCodeAuthenticator.from_settings(settings))
     mail = GraphMailRepository(client)
+    folders = GraphMailFolderRepository(client)
     calendar = GraphCalendarRepository(client, settings.timezone)
     clock = SystemClock(settings.timezone)
     write = _calendar_write(client, settings) if settings.calendar_write_enabled else None
@@ -41,6 +44,7 @@ def build_use_cases(settings: Settings) -> UseCases:
         list_emails=ListEmails(mail),
         count_emails=CountEmails(mail),
         top_senders=TopSenders(mail),
+        list_folders=ListFolders(folders),
         calendar_write=write,
     )
 

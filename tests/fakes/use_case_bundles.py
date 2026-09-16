@@ -7,11 +7,13 @@ from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_emails import ListEmails
+from outlook_mac_mcp.application.list_folders import ListFolders
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
 from outlook_mac_mcp.application.ports.calendar_repository import CalendarRepository
 from outlook_mac_mcp.application.ports.calendar_writer import CalendarWriter
+from outlook_mac_mcp.application.ports.mail_folder_repository import MailFolderRepository
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.search_emails import SearchEmails
@@ -20,6 +22,7 @@ from outlook_mac_mcp.interface.mcp.calendar_write_use_cases import CalendarWrite
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.fixed_clock import FixedClock
 from tests.fakes.in_memory_calendar_repository import InMemoryCalendarRepository
+from tests.fakes.in_memory_mail_folder_repository import InMemoryMailFolderRepository
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 
 FROZEN_NOW = datetime(2026, 9, 15, 15, 42, tzinfo=ZoneInfo("America/Sao_Paulo"))
@@ -51,7 +54,24 @@ def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
         list_emails=bundle.list_emails,
         count_emails=bundle.count_emails,
         top_senders=bundle.top_senders,
+        list_folders=bundle.list_folders,
         calendar_write=write,
+    )
+
+
+def folders_use_cases(repository: MailFolderRepository) -> UseCases:
+    """A bundle for tests of the list_folders tool; every other side is empty."""
+    bundle = _bundle(InMemoryMailRepository(), InMemoryCalendarRepository(), FixedClock(FROZEN_NOW))
+    return UseCases(
+        list_unread_emails=bundle.list_unread_emails,
+        search_emails=bundle.search_emails,
+        get_email=bundle.get_email,
+        list_todays_events=bundle.list_todays_events,
+        list_upcoming_events=bundle.list_upcoming_events,
+        list_emails=bundle.list_emails,
+        count_emails=bundle.count_emails,
+        top_senders=bundle.top_senders,
+        list_folders=ListFolders(repository),
     )
 
 
@@ -65,4 +85,5 @@ def _bundle(mail: MailRepository, calendar: CalendarRepository, clock: Clock) ->
         list_emails=ListEmails(mail),
         count_emails=CountEmails(mail),
         top_senders=TopSenders(mail),
+        list_folders=ListFolders(InMemoryMailFolderRepository()),
     )
