@@ -143,6 +143,64 @@ interface/mcp/    tool registration and input/output translation only
 
 Dependencies point inward. Swapping the backend touches `infrastructure/` only.
 
+## Architecture at a glance
+
+Dependencies point inward. The Graph adapters implement most ports; the one exception
+is `Clock`, implemented by `SystemClock`, which lives outside `infrastructure/graph`
+since it never talks to Microsoft. Nothing in `domain/` or `application/` imports either.
+
+```mermaid
+flowchart TB
+    subgraph interface["interface/mcp — translation only"]
+        tools["MCP tools<br/>pydantic input · flat output views"]
+    end
+    subgraph application["application — use cases"]
+        uc["ListUnreadEmails · SearchEmails · GetEmail<br/>ListEmails · CountEmails · TopSenders<br/>ListTodaysEvents · ListUpcomingEvents<br/>PreviewEvent · CreateEvent · ListFolders · SearchContacts"]
+        ports["Ports (Protocol)<br/>MailRepository · CalendarRepository · CalendarWriter<br/>ContactRepository · MailFolderRepository · Clock"]
+    end
+    subgraph domain["domain — entities and rules"]
+        ent["Email · Event · Contact · Page · TimeWindow<br/>frozen dataclasses · no Graph, no MCP"]
+    end
+    subgraph infra["infrastructure/graph — the only place that knows Microsoft"]
+        adapters["Graph adapters<br/>query builders · JSON→entity mappers"]
+        auth["MSAL device-code<br/>token cache in macOS Keychain"]
+        http["httpx client<br/>host-pinned to graph.microsoft.com"]
+    end
+    clock["infrastructure/system_clock<br/>SystemClock — reads the resolved time zone"]
+    tools --> uc
+    uc --> ports
+    uc --> ent
+    adapters -. implements .-> ports
+    clock -. implements .-> ports
+    adapters --> http
+    http --> auth
+```
+
+One read call end to end. Input is validated before it becomes a query; logs carry
+metadata and counts, never content.
+
+```mermaid
+sequenceDiagram
+    participant CD as Claude Desktop
+    participant S as MCP server (stdio)
+    participant UC as Use case
+    participant A as Graph adapter
+    participant K as macOS Keychain
+    participant G as Microsoft Graph
+    CD->>S: tools/call list_unread_emails {folder, limit}
+    S->>S: validate input (pydantic) → request object
+    S->>UC: execute(request)
+    UC->>A: list_unread(folder, limit)
+    A->>K: read cached token (MSAL silent refresh)
+    K-->>A: access token
+    A->>G: GET /me/mailFolders/inbox/messages?$filter…&$orderby…&$top…&$count=true
+    G-->>A: JSON page + @odata.count
+    A-->>UC: Page[Email]
+    UC-->>S: Page[Email]
+    S-->>CD: {items, returned, total, total_is_exact}
+    Note over S: JSON log to stderr: correlation id, tool, duration, count — never content
+```
+
 ## Development
 
 ```
