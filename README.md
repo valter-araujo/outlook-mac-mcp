@@ -99,6 +99,27 @@ above. Search quoting is additionally covered by a live positive-control check, 
 - **v3:** send email — behind a config flag, off by default, with explicit
   per-call confirmation.
 
+## Tools
+
+Read tools are always registered. `preview_event` and `create_event` are registered
+only when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
+[Optional: calendar write](#optional-calendar-write)).
+
+| Tool | What it does |
+|---|---|
+| `list_unread_emails` | List unread emails in a folder, newest first. |
+| `search_emails` | Search a folder for a term, ranked by relevance, not by date. |
+| `get_email` | Fetch one email by id, body included. |
+| `list_emails` | List emails in a folder with any combination of filters (read state, sender, date range, attachments), sorted newest or oldest, with an exact total. |
+| `count_emails` | Count emails matching the same filters as `list_emails`, exactly, without listing them. |
+| `top_senders` | Rank a folder's senders by how many emails each sent, scanning up to 10,000 matching emails per call. |
+| `list_folders` | List the mailbox's well-known folders with their unread and total item counts. |
+| `list_todays_events` | List today's calendar events, earliest first. |
+| `list_upcoming_events` | List calendar events from now through 1–30 days ahead. |
+| `search_contacts` | Search contacts by a display-name prefix or an exact email address. |
+| `preview_event` (v2, flagged) | Validate a new event and return a token and a summary, without creating it. |
+| `create_event` (v2, flagged) | Create the event previewed under a token from `preview_event`. |
+
 ## Security model
 
 - Least privilege: the token can only do what the requested scopes allow, even
