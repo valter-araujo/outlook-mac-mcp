@@ -21,6 +21,7 @@ from outlook_mac_mcp.interface.mcp.list_unread_emails_input import (
 )
 from outlook_mac_mcp.interface.mcp.mail_listing_tools import register_mail_listing_tools
 from outlook_mac_mcp.interface.mcp.observability import observed_tool_call
+from outlook_mac_mcp.interface.mcp.search_contacts_tool import register_search_contacts_tool
 from outlook_mac_mcp.interface.mcp.search_emails_input import (
     Scope,
     SearchEmailsInput,
@@ -79,6 +80,7 @@ def build_server(use_cases: UseCases) -> MCPServer:
     register_mail_listing_tools(server, use_cases)
     register_top_senders_tool(server, use_cases.top_senders)
     register_list_folders_tool(server, use_cases.list_folders)
+    register_search_contacts_tool(server, use_cases.search_contacts)
     register_calendar_tools(server, use_cases)
     if use_cases.calendar_write is not None:
         register_calendar_write_tools(server, use_cases.calendar_write)
