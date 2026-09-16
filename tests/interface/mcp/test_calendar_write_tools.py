@@ -5,7 +5,7 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import CallToolResult
 
-from outlook_mac_mcp.domain.new_event import MAX_ATTENDEES, MAX_SUBJECT_LENGTH
+from outlook_mac_mcp.domain.new_event import MAX_ATTENDEES, MAX_BODY_LENGTH, MAX_SUBJECT_LENGTH
 from outlook_mac_mcp.interface.mcp.calendar_write_tools import (
     CREATE_EVENT_TOOL,
     PREVIEW_EVENT_TOOL,
@@ -80,7 +80,50 @@ async def test_create_with_the_token_creates_exactly_the_previewed_event() -> No
     assert created["id"] == "created-1"
     assert created["subject"] == "Planning"
     assert created["start"] == "2026-09-15T09:00:00-03:00"
+    assert created["body"] == ""
     assert [attendee.address for attendee in writer.created[0].attendees] == ["ana@example.com"]
+
+
+async def test_omitting_the_body_preserves_the_previous_behaviour_exactly() -> None:
+    """A_PREVIEW carries no "body" key at all: the same shape of call this project
+    always accepted, before body support existed.
+    """
+    assert "body" not in A_PREVIEW
+    server, writer = server_with_writes()
+
+    draft = await call(server, PREVIEW_EVENT_TOOL, A_PREVIEW)
+    created = await call(server, CREATE_EVENT_TOOL, {"token": draft["token"]})
+
+    assert "body" not in draft["summary"]
+    assert writer.created[0].body == ""
+    assert created["body"] == ""
+
+
+async def test_preview_includes_a_short_body_in_full_in_the_summary() -> None:
+    server, _ = server_with_writes()
+
+    draft = await call(server, PREVIEW_EVENT_TOOL, A_PREVIEW | {"body": "Bring the deck."})
+
+    assert 'body: "Bring the deck."' in draft["summary"]
+
+
+async def test_create_carries_the_body_through_to_the_created_event() -> None:
+    server, writer = server_with_writes()
+    token = (await call(server, PREVIEW_EVENT_TOOL, A_PREVIEW | {"body": "Bring the deck."}))[
+        "token"
+    ]
+
+    created = await call(server, CREATE_EVENT_TOOL, {"token": token})
+
+    assert created["body"] == "Bring the deck."
+    assert writer.created[0].body == "Bring the deck."
+
+
+async def test_rejects_a_body_beyond_the_maximum_length() -> None:
+    server, _ = server_with_writes()
+
+    with pytest.raises(ToolError):
+        await call(server, PREVIEW_EVENT_TOOL, A_PREVIEW | {"body": "a" * (MAX_BODY_LENGTH + 1)})
 
 
 async def test_a_token_works_exactly_once() -> None:
@@ -170,4 +213,17 @@ async def test_both_tools_require_confirmation_of_details_taken_from_email(tool:
 
     assert "email content" in description
     assert "confirmation" in description
+    assert "BEFORE calling preview_event" in description
+
+
+@pytest.mark.parametrize("tool", [PREVIEW_EVENT_TOOL, CREATE_EVENT_TOOL])
+async def test_both_tools_also_require_confirmation_of_body_content_taken_from_the_web(
+    tool: str,
+) -> None:
+    server, _ = server_with_writes()
+
+    description = await description_of(server, tool)
+
+    assert "web content" in description
+    assert "the body" in description
     assert "BEFORE calling preview_event" in description

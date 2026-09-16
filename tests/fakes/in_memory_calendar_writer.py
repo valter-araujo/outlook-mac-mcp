@@ -21,4 +21,5 @@ class InMemoryCalendarWriter:
             is_all_day=new_event.is_all_day,
             location=new_event.location,
             organizer=ORGANIZER,
+            body=new_event.body,
         )
