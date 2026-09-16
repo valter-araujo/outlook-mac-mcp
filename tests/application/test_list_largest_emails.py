@@ -29,7 +29,8 @@ def make_email(email_id: str, *, days_ago: int = 0, is_read: bool = False) -> Em
     )
 
 
-def repository_with(*sized: tuple[Email, int]) -> InMemoryMailRepository:
+def repository_with(*sized: tuple[Email, int | None]) -> InMemoryMailRepository:
+    """A size of None stands in for a message with no size property at all."""
     repository = InMemoryMailRepository()
     for email, size_bytes in sized:
         repository.add(FolderName.INBOX, email, size_bytes=size_bytes)
@@ -75,8 +76,22 @@ def test_reports_full_coverage_with_scanned_equal_to_total() -> None:
     ranking = use_case.execute(ListLargestEmailsRequest())
 
     assert ranking.scanned == 2
+    assert ranking.skipped == 0
     assert ranking.total == 2
     assert ranking.coverage_is_complete is True
+
+
+def test_an_email_with_no_known_size_is_skipped_not_ranked() -> None:
+    use_case = ListLargestEmails(
+        repository_with((make_email("sized"), 100), (make_email("unsized", days_ago=1), None))
+    )
+
+    ranking = use_case.execute(ListLargestEmailsRequest())
+
+    assert [item.id for item in ranking.items] == ["sized"]
+    assert ranking.skipped == 1
+    assert ranking.scanned == 2
+    assert ranking.total == 2
 
 
 def test_stops_at_the_ceiling_and_ranks_only_what_was_scanned() -> None:

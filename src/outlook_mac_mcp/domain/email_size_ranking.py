@@ -8,6 +8,7 @@ from outlook_mac_mcp.domain.email_size import EmailSize
 class EmailSizeRanking:
     items: tuple[EmailSize, ...]
     scanned: int
+    skipped: int
     total: int
     coverage_is_complete: bool
 

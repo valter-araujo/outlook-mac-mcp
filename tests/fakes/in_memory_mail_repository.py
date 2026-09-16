@@ -24,9 +24,14 @@ class InMemoryMailRepository:
     def __init__(self) -> None:
         self._emails: dict[FolderName, list[Email]] = defaultdict(list)
         self._bodies: dict[str, str] = {}
-        self._sizes: dict[str, int] = {}
+        self._sizes: dict[str, int | None] = {}
 
-    def add(self, folder: FolderName, email: Email, body: str = "", size_bytes: int = 0) -> None:
+    def add(
+        self, folder: FolderName, email: Email, body: str = "", size_bytes: int | None = 0
+    ) -> None:
+        """`size_bytes=None` stands in for a message that carries no size property, the
+        way a real message might carry neither the Integer nor the Long form.
+        """
         self._emails[folder].append(email)
         self._bodies[email.id] = body
         self._sizes[email.id] = size_bytes
@@ -70,22 +75,28 @@ class InMemoryMailRepository:
         )
 
     def scan_email_sizes(self, filters: EmailFilters, ceiling: int) -> EmailSizeScan:
-        """Same walk as scan_senders, carrying each email's recorded size instead."""
+        """Same walk as scan_senders. An email recorded with size_bytes=None is examined
+        but excluded from items and counted as skipped, the way a real scan does for a
+        message that carries neither form of the size property.
+        """
         matching = sorted(
             self._matching(filters), key=lambda email: email.received_at, reverse=True
         )
+        examined = matching[:ceiling]
         items = tuple(
             EmailSize(
                 id=email.id,
                 subject=email.subject,
                 sender=email.sender,
                 received_at=email.received_at,
-                size_bytes=self._sizes.get(email.id, 0),
+                size_bytes=size_bytes,
             )
-            for email in matching[:ceiling]
+            for email in examined
+            if (size_bytes := self._sizes.get(email.id, 0)) is not None
         )
         return EmailSizeScan(
             items=items,
+            skipped=len(examined) - len(items),
             total=len(matching),
             coverage_is_complete=len(matching) <= ceiling,
         )

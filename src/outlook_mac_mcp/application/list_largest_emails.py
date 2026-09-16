@@ -51,6 +51,7 @@ class ListLargestEmails:
         return EmailSizeRanking(
             items=rank_by_size(scan.items, request.limit),
             scanned=scan.scanned,
+            skipped=scan.skipped,
             total=scan.total,
             coverage_is_complete=scan.coverage_is_complete,
         )
