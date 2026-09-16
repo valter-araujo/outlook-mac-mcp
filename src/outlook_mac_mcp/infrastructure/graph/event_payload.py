@@ -25,6 +25,8 @@ def to_event_payload(new_event: NewEvent, timezone: ZoneInfo) -> dict[str, Any]:
     }
     if new_event.location:
         payload["location"] = {"displayName": new_event.location}
+    if new_event.body:
+        payload["body"] = {"contentType": "text", "content": new_event.body}
     return payload
 
 

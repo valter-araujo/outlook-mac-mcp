@@ -68,6 +68,25 @@ def test_sends_the_location_as_a_display_name() -> None:
     assert payload["location"] == {"displayName": "Room 1"}
 
 
+def test_omits_the_body_when_there_is_none() -> None:
+    payload = to_event_payload(
+        NewEvent(subject="Planning", start=NINE, end=NINE + timedelta(hours=1)), SAO_PAULO
+    )
+
+    assert "body" not in payload
+
+
+def test_sends_the_body_as_plain_text() -> None:
+    payload = to_event_payload(
+        NewEvent(
+            subject="Planning", start=NINE, end=NINE + timedelta(hours=1), body="Bring the deck."
+        ),
+        SAO_PAULO,
+    )
+
+    assert payload["body"] == {"contentType": "text", "content": "Bring the deck."}
+
+
 def test_sends_attendees_as_required_with_a_name_only_when_known() -> None:
     payload = to_event_payload(
         NewEvent(

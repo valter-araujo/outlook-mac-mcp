@@ -8,6 +8,7 @@ from outlook_mac_mcp.infrastructure.graph.email_address_mapper import to_email_a
 from outlook_mac_mcp.infrastructure.graph.errors import GraphResponseError
 from outlook_mac_mcp.infrastructure.graph.json_fields import (
     optional_text,
+    optional_text_body,
     required_flag,
     required_text,
 )
@@ -22,6 +23,9 @@ def to_event(event: Mapping[str, Any]) -> Event:
     is the one asked for in the Prefer header, except that all-day events may come back
     in the zone they were created in; attaching whatever zone Graph names keeps the
     instant right in both cases.
+
+    A listing never selects `body`, so `optional_text_body` reads it as empty there; only
+    a just-created event, read back with a text-body preference, ever carries one.
     """
     return Event(
         id=required_text(event, "id"),
@@ -31,6 +35,7 @@ def to_event(event: Mapping[str, Any]) -> Event:
         is_all_day=required_flag(event, "isAllDay"),
         location=_read_location(event),
         organizer=to_email_address(event.get("organizer")),
+        body=optional_text_body(event),
     )
 
 

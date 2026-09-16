@@ -105,3 +105,19 @@ def test_raises_when_a_required_field_is_missing(field: str) -> None:
 
     with pytest.raises(GraphResponseError, match=field):
         to_event(payload)
+
+
+def test_maps_a_missing_body_to_empty() -> None:
+    """A listing never selects body, so a listed event carries none; this must not raise."""
+    assert to_event(graph_event()).body == ""
+
+
+def test_reads_a_plain_text_body() -> None:
+    event = to_event(graph_event(body={"contentType": "text", "content": "Bring the deck."}))
+
+    assert event.body == "Bring the deck."
+
+
+def test_raises_when_the_body_is_html_instead_of_text() -> None:
+    with pytest.raises(GraphResponseError, match="html"):
+        to_event(graph_event(body={"contentType": "html", "content": "<p>Bring it</p>"}))

@@ -5,7 +5,11 @@ from outlook_mac_mcp.domain.new_event import NewEvent
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.event_mapper import to_event
 from outlook_mac_mcp.infrastructure.graph.event_payload import to_event_payload
-from outlook_mac_mcp.infrastructure.graph.preferences import timezone_preference
+from outlook_mac_mcp.infrastructure.graph.preferences import (
+    combined_preference,
+    text_body_preference,
+    timezone_preference,
+)
 
 EVENTS_PATH = "/me/events"
 
@@ -25,6 +29,16 @@ class GraphCalendarWriter:
         payload = self._client.post(
             EVENTS_PATH,
             to_event_payload(new_event, self._timezone),
-            timezone_preference(self._timezone),
+            self._headers(new_event),
         )
         return to_event(payload)
+
+    def _headers(self, new_event: NewEvent) -> dict[str, str]:
+        """A text-body preference is only added when a body is actually being sent: with
+        none, the response has nothing to be read back as HTML by default, and the
+        request stays exactly what it was before this preference existed.
+        """
+        timezone = timezone_preference(self._timezone)
+        if not new_event.body:
+            return timezone
+        return combined_preference(timezone, text_body_preference())

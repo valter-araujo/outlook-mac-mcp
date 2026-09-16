@@ -20,6 +20,9 @@ NINE = datetime(2026, 9, 15, 9, tzinfo=SAO_PAULO)
 A_NEW_EVENT = NewEvent(
     subject="Planning", start=NINE, end=NINE + timedelta(hours=1), location="Room 1"
 )
+A_NEW_EVENT_WITH_BODY = NewEvent(
+    subject="Planning", start=NINE, end=NINE + timedelta(hours=1), body="Bring the deck."
+)
 CREATED: dict[str, Any] = {
     "id": "AAMkNEW",
     "subject": "Planning",
@@ -28,6 +31,10 @@ CREATED: dict[str, Any] = {
     "isAllDay": False,
     "location": {"displayName": "Room 1"},
     "organizer": {"emailAddress": {"name": "Me", "address": "me@example.com"}},
+}
+CREATED_WITH_BODY: dict[str, Any] = {
+    **{key: value for key, value in CREATED.items() if key != "location"},
+    "body": {"contentType": "text", "content": "Bring the deck."},
 }
 
 
@@ -62,11 +69,53 @@ def test_posts_the_event_payload_to_the_default_calendar(writer: GraphCalendarWr
 
 @respx.mock
 def test_asks_for_the_created_event_in_the_resolved_zone(writer: GraphCalendarWriter) -> None:
+    """No body: the Prefer header is exactly what it was before body support existed."""
     route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED))
 
     writer.create(A_NEW_EVENT)
 
     assert route.calls.last.request.headers["Prefer"] == 'outlook.timezone="America/Sao_Paulo"'
+
+
+@respx.mock
+def test_sends_the_body_as_plain_text(writer: GraphCalendarWriter) -> None:
+    route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED_WITH_BODY))
+
+    writer.create(A_NEW_EVENT_WITH_BODY)
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["body"] == {"contentType": "text", "content": "Bring the deck."}
+
+
+@respx.mock
+def test_asks_for_the_zone_and_a_text_body_together_when_a_body_is_sent(
+    writer: GraphCalendarWriter,
+) -> None:
+    route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED_WITH_BODY))
+
+    writer.create(A_NEW_EVENT_WITH_BODY)
+
+    assert route.calls.last.request.headers["Prefer"] == (
+        'outlook.timezone="America/Sao_Paulo", outlook.body-content-type="text"'
+    )
+
+
+@respx.mock
+def test_reads_the_created_bodys_text_back(writer: GraphCalendarWriter) -> None:
+    respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED_WITH_BODY))
+
+    created = writer.create(A_NEW_EVENT_WITH_BODY)
+
+    assert created.body == "Bring the deck."
+
+
+@respx.mock
+def test_a_created_event_with_no_body_reads_back_empty(writer: GraphCalendarWriter) -> None:
+    respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED))
+
+    created = writer.create(A_NEW_EVENT)
+
+    assert created.body == ""
 
 
 @respx.mock
