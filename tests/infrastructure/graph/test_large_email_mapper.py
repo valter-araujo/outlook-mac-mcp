@@ -59,7 +59,10 @@ def test_reads_the_integer_typed_property() -> None:
 
 
 def test_reads_the_long_typed_property() -> None:
-    """Which type name a tenant actually uses for this property varies; both are read."""
+    """Either type keyword is accepted; see
+    test_matches_the_property_exactly_as_graph_echoed_it_back_live for what Graph
+    actually returns for either one.
+    """
     message = message_with(
         "singleValueExtendedProperties",
         [{"id": MESSAGE_SIZE_PROPERTY_ID_LONG, "value": "4294967296"}],
@@ -69,6 +72,35 @@ def test_reads_the_long_typed_property() -> None:
 
     assert email_size is not None
     assert email_size.size_bytes == 4294967296
+
+
+@pytest.mark.parametrize("property_id", ["Long 0xe08", "Integer 0xe08"])
+def test_matches_the_property_exactly_as_graph_echoed_it_back_live(property_id: str) -> None:
+    """Live check, 2026-09-16, personal Outlook.com mailbox, one real message: requesting
+    the property as 'Long 0x0E08' or 'Integer 0x0E08' both returned it with its id
+    echoed back lowercase and without the leading zero, as asserted here with the exact
+    strings observed — never the zero-padded, capitalized form that was requested. See
+    the note on _is_message_size_property in large_email_mapper.py.
+    """
+    message = message_with(
+        "singleValueExtendedProperties", [{"id": property_id, "value": "375436"}]
+    )
+
+    email_size = to_email_size(message)
+
+    assert email_size is not None
+    assert email_size.size_bytes == 375436
+
+
+def test_does_not_match_a_different_property_sharing_the_same_tag_number() -> None:
+    """The type keyword still has to be one this property is known to use; matching by
+    tag number with no type check at all would be too loose.
+    """
+    message = message_with(
+        "singleValueExtendedProperties", [{"id": "String 0xe08", "value": "not-a-size"}]
+    )
+
+    assert to_email_size(message) is None
 
 
 def test_finds_the_size_property_among_others() -> None:

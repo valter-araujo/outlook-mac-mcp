@@ -12,12 +12,16 @@ from outlook_mac_mcp.infrastructure.graph.json_fields import (
 
 # PR_MESSAGE_SIZE, the MAPI property Outlook itself uses for a message's size in bytes.
 # Its documented proptag id form is "{type} {proptag}"; Microsoft's own docs list no
-# typeless form. Which type name a tenant actually uses for this property is not
-# something the docs settle, so both are requested and both are accepted here.
+# typeless form, and requesting it is unaffected by the finding below: both type
+# keywords are sent, since either was observed to resolve the same property.
 MESSAGE_SIZE_PROPERTY_ID_INTEGER = "Integer 0x0E08"
 MESSAGE_SIZE_PROPERTY_ID_LONG = "Long 0x0E08"
-MESSAGE_SIZE_PROPERTY_IDS = (MESSAGE_SIZE_PROPERTY_ID_INTEGER, MESSAGE_SIZE_PROPERTY_ID_LONG)
 EXTENDED_PROPERTIES_FIELD = "singleValueExtendedProperties"
+
+# Which type keywords Graph accepts for this property when reading its id back. Matching
+# must not require a specific one: see the note on _is_message_size_property below.
+MESSAGE_SIZE_PROPERTY_TYPES = frozenset({"integer", "long"})
+MESSAGE_SIZE_PROPERTY_TAG = 0x0E08
 
 
 def to_email_size(message: Mapping[str, Any]) -> EmailSize | None:
@@ -52,7 +56,7 @@ def _read_size_bytes(message: Mapping[str, Any]) -> int | None:
     for extended_property in properties:
         if not isinstance(extended_property, dict):
             continue
-        if extended_property.get("id") not in MESSAGE_SIZE_PROPERTY_IDS:
+        if not _is_message_size_property(extended_property.get("id")):
             continue
         value = extended_property.get("value")
         if not isinstance(value, str):
@@ -66,3 +70,35 @@ def _read_size_bytes(message: Mapping[str, Any]) -> int | None:
                 f"a message size property value {value!r} was not an integer"
             ) from error
     return None
+
+
+def _is_message_size_property(property_id: object) -> bool:
+    r"""Whether `property_id` names PR_MESSAGE_SIZE, regardless of type keyword or of how
+    Graph formats the hex tag on the way back.
+
+    Live check, 2026-09-16, personal Outlook.com mailbox, one real message: requesting
+    $expand=singleValueExtendedProperties($filter=id eq 'Long 0x0E08') returned the
+    property with `"id": "Long 0xe08"`; requesting 'Integer 0x0E08' on the same message
+    returned `"id": "Integer 0xe08"` and the same value. Two things follow, neither of
+    which an earlier, narrower live check had reason to catch:
+
+    1. Graph does not echo an extended property's id back in the case or padding it was
+       requested in — lowercase, no leading zero, regardless of what was sent. A mapper
+       that compares the returned id against a fixed-case, zero-padded string constant
+       (the bug this function replaces) never matches anything Graph actually sends,
+       which is what turned every scanned message into a false "no size" skip.
+    2. Either type keyword resolves the same property to the same value, so the type
+       name is checked only against the small set Graph is known to use for it, never
+       required to be one specific keyword.
+
+    Do not go back to comparing `property_id` against a fixed string for this reason.
+    """
+    if not isinstance(property_id, str):
+        return False
+    type_name, _, tag = property_id.partition(" ")
+    if type_name.casefold() not in MESSAGE_SIZE_PROPERTY_TYPES:
+        return False
+    try:
+        return int(tag, 16) == MESSAGE_SIZE_PROPERTY_TAG
+    except ValueError:
+        return False
