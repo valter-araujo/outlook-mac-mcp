@@ -1,16 +1,17 @@
 r"""Building the Graph $search value, and why it is shaped the way it is.
 
 Live check against Microsoft Graph on 2026-09-14, personal Outlook.com mailbox, inbox,
-$top=100. The positive control is `from:donotreply@contoso.com`, which matches exactly
+$top=100. The positive control is `from:<a real sender address>`, which matches exactly
 one message: a term carrying that operator returns one result if the operator ran, and
 none if the term was read as text.
 
-    "Contoso"                                        26 hits
-    "Contoso AND from:donotreply@contoso.com"         1 hit    operators executed
-    "\"Contoso AND from:donotreply@contoso.com\""     0 hits   literal, as intended
-    subject:"Contoso"                                 400      BadRequest
-    "subject:\"Contoso\""                             5 hits   restriction applied
-    "\"path\\\""                                    100 hits   phrase boundary lost
+    "<term>"                                        matched several messages
+    "<term> AND from:<sender>"                       filtered to the one control message,
+                                                      operators executed
+    "\"<term> AND from:<sender>\""                   matched nothing, literal, as intended
+    subject:"<term>"                                 400      BadRequest
+    "subject:\"<term>\""                             matched a narrower, still-exact subset
+    "\"path\\\""                                     matched a full page, phrase boundary lost
 
 Three conclusions, none of which the unit tests could have reached, because asserting
 the bytes we send says nothing about how Graph parses them:
