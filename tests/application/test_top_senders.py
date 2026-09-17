@@ -118,7 +118,7 @@ def test_defaults_to_ten_senders_from_the_inbox() -> None:
     request = TopSendersRequest()
 
     assert request.limit == DEFAULT_TOP_SENDERS
-    assert request.folder is FolderName.INBOX
+    assert request.folders == (FolderName.INBOX,)
 
 
 def test_ranks_nobody_on_an_empty_folder() -> None:

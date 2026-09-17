@@ -56,4 +56,4 @@ def test_counts_the_requested_folder_only() -> None:
     repository.add(FolderName.INBOX, make_email("inboxed"))
     repository.add(FolderName.ARCHIVE, make_email("archived"))
 
-    assert CountEmails(repository).execute(EmailFilters(folder=FolderName.ARCHIVE)) == 1
+    assert CountEmails(repository).execute(EmailFilters(folders=(FolderName.ARCHIVE,))) == 1

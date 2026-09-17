@@ -134,7 +134,7 @@ def test_reads_the_requested_folder_only() -> None:
     repository.add(FolderName.ARCHIVE, make_email("archived"))
 
     page = ListEmails(repository).execute(
-        ListEmailsRequest(filters=EmailFilters(folder=FolderName.ARCHIVE))
+        ListEmailsRequest(filters=EmailFilters(folders=(FolderName.ARCHIVE,)))
     )
 
     assert [email.id for email in page.items] == ["archived"]

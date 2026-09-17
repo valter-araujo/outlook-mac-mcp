@@ -46,7 +46,7 @@ def test_returns_only_unread_emails_from_requested_folder() -> None:
     repository.add(FolderName.ARCHIVE, make_email("unread-archive"))
     use_case = ListUnreadEmails(repository)
 
-    result = use_case.execute(ListUnreadEmailsRequest(folder=FolderName.INBOX))
+    result = use_case.execute(ListUnreadEmailsRequest(folders=(FolderName.INBOX,)))
 
     assert [email.id for email in result.items] == ["unread-inbox"]
 

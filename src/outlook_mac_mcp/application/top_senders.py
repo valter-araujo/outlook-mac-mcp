@@ -19,7 +19,7 @@ class TopSendersRequest:
     sender is meaningless, and attachments say nothing about who writes most.
     """
 
-    folder: FolderName = FolderName.INBOX
+    folders: tuple[FolderName, ...] = (FolderName.INBOX,)
     is_read: bool | None = None
     received_after: datetime | None = None
     received_before: datetime | None = None
@@ -31,7 +31,7 @@ class TopSendersRequest:
 
     def filters(self) -> EmailFilters:
         return EmailFilters(
-            folder=self.folder,
+            folders=self.folders,
             is_read=self.is_read,
             received_after=self.received_after,
             received_before=self.received_before,

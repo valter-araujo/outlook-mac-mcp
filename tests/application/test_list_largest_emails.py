@@ -133,7 +133,7 @@ def test_defaults_to_ten_largest_from_the_inbox() -> None:
     request = ListLargestEmailsRequest()
 
     assert request.limit == DEFAULT_LARGEST_EMAILS
-    assert request.folder is FolderName.INBOX
+    assert request.folders == (FolderName.INBOX,)
 
 
 def test_ranks_nothing_on_an_empty_folder() -> None:

@@ -19,7 +19,7 @@ class ListLargestEmailsRequest:
     correspondent, and whether an email has an attachment is already implied by its size.
     """
 
-    folder: FolderName = FolderName.INBOX
+    folders: tuple[FolderName, ...] = (FolderName.INBOX,)
     is_read: bool | None = None
     received_after: datetime | None = None
     limit: int = DEFAULT_LARGEST_EMAILS
@@ -30,7 +30,7 @@ class ListLargestEmailsRequest:
 
     def filters(self) -> EmailFilters:
         return EmailFilters(
-            folder=self.folder, is_read=self.is_read, received_after=self.received_after
+            folders=self.folders, is_read=self.is_read, received_after=self.received_after
         )
 
 

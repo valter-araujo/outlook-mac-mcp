@@ -47,7 +47,7 @@ def test_searches_only_the_requested_folder() -> None:
     repository.add(FolderName.ARCHIVE, make_email("archived", subject="deck"))
     use_case = SearchEmails(repository)
 
-    result = use_case.execute(SearchEmailsRequest(term="deck", folder=FolderName.ARCHIVE))
+    result = use_case.execute(SearchEmailsRequest(term="deck", folders=(FolderName.ARCHIVE,)))
 
     assert [email.id for email in result.items] == ["archived"]
 
@@ -88,7 +88,7 @@ def test_reports_the_exact_number_of_matches_beyond_the_page() -> None:
 def test_defaults_to_the_inbox_and_the_shared_limit() -> None:
     request = SearchEmailsRequest(term="deck")
 
-    assert request.folder is FolderName.INBOX
+    assert request.folders == (FolderName.INBOX,)
     assert request.limit == DEFAULT_LIMIT
 
 

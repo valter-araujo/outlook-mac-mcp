@@ -37,8 +37,10 @@ class InMemoryMailRepository:
         self._bodies[email.id] = body
         self._sizes[email.id] = size_bytes
 
-    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
-        unread = [email for email in self._emails[folder] if not email.is_read]
+    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
+        unread = [
+            email for folder in folders for email in self._emails[folder] if not email.is_read
+        ]
         newest_first = sorted(unread, key=lambda email: email.received_at, reverse=True)
         return _exact_page(newest_first, limit)
 
@@ -51,7 +53,8 @@ class InMemoryMailRepository:
         needle = request.term.casefold()
         matches = [
             email
-            for email in self._emails[request.folder]
+            for folder in request.folders
+            for email in self._emails[folder]
             if _matches(email, needle, request.scope)
         ]
         return EmailSearchPage(
@@ -112,7 +115,12 @@ class InMemoryMailRepository:
         )
 
     def _matching(self, filters: EmailFilters) -> list[Email]:
-        return [email for email in self._emails[filters.folder] if _passes(email, filters)]
+        return [
+            email
+            for folder in filters.folders
+            for email in self._emails[folder]
+            if _passes(email, filters)
+        ]
 
     def get_by_id(self, email_id: str) -> EmailDetail:
         for emails in self._emails.values():
