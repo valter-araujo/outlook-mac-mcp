@@ -56,7 +56,7 @@ A_LOWER_BOUND = 250
 class LowerBoundMailRepository:
     """A backend that stopped counting, the way Graph does past the search ceiling."""
 
-    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
+    def list_unread(self, folders: tuple[str, ...], limit: int) -> Page[Email]:
         raise NotImplementedError
 
     def get_by_id(self, email_id: str) -> EmailDetail:
@@ -94,7 +94,7 @@ class RecordingMailRepository:
     def __init__(self) -> None:
         self.last_request: SearchEmailsRequest | None = None
 
-    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
+    def list_unread(self, folders: tuple[str, ...], limit: int) -> Page[Email]:
         raise NotImplementedError
 
     def get_by_id(self, email_id: str) -> EmailDetail:

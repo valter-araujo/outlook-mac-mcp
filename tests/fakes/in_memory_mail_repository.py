@@ -9,7 +9,6 @@ from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.email_size import EmailSize
 from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.errors import EmailNotFoundError
-from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.domain.sender_scan import SenderScan
@@ -23,13 +22,11 @@ class InMemoryMailRepository:
     """
 
     def __init__(self) -> None:
-        self._emails: dict[FolderName, list[Email]] = defaultdict(list)
+        self._emails: dict[str, list[Email]] = defaultdict(list)
         self._bodies: dict[str, str] = {}
         self._sizes: dict[str, int | None] = {}
 
-    def add(
-        self, folder: FolderName, email: Email, body: str = "", size_bytes: int | None = 0
-    ) -> None:
+    def add(self, folder: str, email: Email, body: str = "", size_bytes: int | None = 0) -> None:
         """`size_bytes=None` stands in for a message that carries no size property, the
         way a real message might carry neither the Integer nor the Long form.
         """
@@ -37,7 +34,7 @@ class InMemoryMailRepository:
         self._bodies[email.id] = body
         self._sizes[email.id] = size_bytes
 
-    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
+    def list_unread(self, folders: tuple[str, ...], limit: int) -> Page[Email]:
         unread = [
             email for folder in folders for email in self._emails[folder] if not email.is_read
         ]

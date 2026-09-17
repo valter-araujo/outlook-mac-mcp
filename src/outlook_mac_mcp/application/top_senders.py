@@ -19,7 +19,7 @@ class TopSendersRequest:
     sender is meaningless, and attachments say nothing about who writes most.
     """
 
-    folders: tuple[FolderName, ...] = (FolderName.INBOX,)
+    folders: tuple[str, ...] = (FolderName.INBOX,)
     is_read: bool | None = None
     received_after: datetime | None = None
     received_before: datetime | None = None

@@ -32,9 +32,12 @@ class FolderSelection(StrEnum):
         return ", ".join(folder.value for folder in self.to_folders())
 
 
-def ensure_well_formed_folders(folders: tuple[FolderName, ...]) -> None:
+def ensure_well_formed_folders(folders: tuple[str, ...]) -> None:
     """Every mail request that fans out over folders shares this one check, so a bad
     tuple is caught the same way regardless of which request built it.
+
+    `folders` holds Graph folder identifiers generally, not only `FolderName` members:
+    a resolved custom folder's Graph id passes through here too.
     """
     if not folders:
         raise InvalidRequestError("folders must not be empty")

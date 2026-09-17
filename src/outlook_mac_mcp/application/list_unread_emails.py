@@ -10,7 +10,7 @@ from outlook_mac_mcp.domain.page import Page
 
 @dataclass(frozen=True, slots=True)
 class ListUnreadEmailsRequest:
-    folders: tuple[FolderName, ...] = (FolderName.INBOX,)
+    folders: tuple[str, ...] = (FolderName.INBOX,)
     limit: int = DEFAULT_LIMIT
 
     def __post_init__(self) -> None:

@@ -7,13 +7,12 @@ from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
 from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
-from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.sender_scan import SenderScan
 
 
 class MailRepository(Protocol):
-    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
+    def list_unread(self, folders: tuple[str, ...], limit: int) -> Page[Email]:
         """Return up to `limit` unread emails from `folders`, newest first.
 
         More than one folder means every matching email is merged into one newest-first

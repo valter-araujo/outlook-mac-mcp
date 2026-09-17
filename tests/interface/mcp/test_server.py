@@ -37,7 +37,7 @@ class FailingMailRepository:
     def __init__(self, error: Exception) -> None:
         self._error = error
 
-    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
+    def list_unread(self, folders: tuple[str, ...], limit: int) -> Page[Email]:
         raise self._error
 
     def get_by_id(self, email_id: str) -> EmailDetail:

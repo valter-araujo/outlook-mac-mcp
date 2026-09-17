@@ -24,7 +24,7 @@ class EmailFilters:
     single caller-named folder into more than one.
     """
 
-    folders: tuple[FolderName, ...] = (FolderName.INBOX,)
+    folders: tuple[str, ...] = (FolderName.INBOX,)
     is_read: bool | None = None
     sender: str | None = None
     received_after: datetime | None = None

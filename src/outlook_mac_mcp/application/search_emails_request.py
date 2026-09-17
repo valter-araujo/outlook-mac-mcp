@@ -37,7 +37,7 @@ class SearchEmailsRequest:
     """
 
     term: str
-    folders: tuple[FolderName, ...] = (FolderName.INBOX,)
+    folders: tuple[str, ...] = (FolderName.INBOX,)
     scope: SearchScope = SearchScope.ANY
     limit: int = DEFAULT_LIMIT
     page_token: str | None = None

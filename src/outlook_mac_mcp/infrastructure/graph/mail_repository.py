@@ -11,7 +11,6 @@ from outlook_mac_mcp.domain.email_filters import EmailFilters
 from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
-from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.sender_scan import SenderScan
 from outlook_mac_mcp.domain.sort_order import SortOrder
@@ -57,10 +56,12 @@ class GraphMailRepository:
     def __init__(self, client: GraphClient) -> None:
         self._client = client
 
-    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
-        """Nothing user-supplied is spliced into the query: the folder segment comes from a
-        closed enum of well-known names, the filter and order are constants, and `limit` is an
-        int validated by the use case, so there is no string for a caller to break out of.
+    def list_unread(self, folders: tuple[str, ...], limit: int) -> Page[Email]:
+        """Nothing user-supplied is spliced into the query: each folder segment is either
+        a well-known name or a folder id Graph itself produced while resolving a custom
+        path, never raw caller text; the filter and order are constants, and `limit` is
+        an int validated by the use case, so there is no string for a caller to break
+        out of.
 
         `$count=true` makes Graph report how many messages match the filter in the same
         response, so the total costs no extra request. More than one folder means one such
@@ -71,7 +72,7 @@ class GraphMailRepository:
         total = 0
         for folder in folders:
             payload = self._client.get(
-                f"/me/mailFolders/{folder.value}/messages",
+                _messages_path(folder),
                 {
                     "$filter": UNREAD_FILTER,
                     "$orderby": NEWEST_FIRST_ORDER,
@@ -222,13 +223,11 @@ class GraphMailRepository:
         )
 
 
-def _messages_path(folder: FolderName) -> str:
-    return f"/me/mailFolders/{folder.value}/messages"
+def _messages_path(folder: str) -> str:
+    return f"/me/mailFolders/{folder}/messages"
 
 
-def _count_search_across(
-    client: GraphClient, folders: tuple[FolderName, ...], search: str
-) -> MatchCount:
+def _count_search_across(client: GraphClient, folders: tuple[str, ...], search: str) -> MatchCount:
     counts = [count_search_matches(client, _messages_path(folder), search) for folder in folders]
     return MatchCount(
         total=sum(count.total for count in counts),

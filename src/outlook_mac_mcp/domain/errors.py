@@ -24,6 +24,12 @@ class DraftNotFoundError(OutlookMcpError):
     """
 
 
+class CustomFolderNotFoundError(OutlookMcpError):
+    """No custom folder matches the requested path, within the depth and folder-count
+    caps the search stayed inside.
+    """
+
+
 class EventWriteUnconfirmedError(OutlookMcpError):
     """A create or update reached the calendar and succeeded, but the response
     describing the result could not be read afterward.
