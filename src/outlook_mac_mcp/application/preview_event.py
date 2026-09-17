@@ -11,8 +11,10 @@ class PreviewEvent:
     token and describes it, so the user confirms exactly what CreateEvent will send.
     """
 
-    def __init__(self, draft_store: DraftStore) -> None:
+    def __init__(self, draft_store: DraftStore[EventDraft]) -> None:
         self._draft_store = draft_store
 
     def execute(self, new_event: NewEvent) -> EventDraft:
-        return self._draft_store.add(new_event, describe(new_event))
+        return self._draft_store.add(
+            lambda token: EventDraft(token=token, summary=describe(new_event), new_event=new_event)
+        )

@@ -1,6 +1,7 @@
 from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
+from outlook_mac_mcp.application.event_draft import EventDraft
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_folders import ListFolders
@@ -57,7 +58,7 @@ def build_use_cases(settings: Settings) -> UseCases:
 
 def _calendar_write(client: GraphClient, settings: Settings) -> CalendarWriteUseCases:
     """One draft store per process, shared by the pair, is what makes a token single-use."""
-    drafts = DraftStore()
+    drafts: DraftStore[EventDraft] = DraftStore()
     writer = GraphCalendarWriter(client, settings.timezone)
     return CalendarWriteUseCases(
         preview_event=PreviewEvent(drafts), create_event=CreateEvent(drafts, writer)

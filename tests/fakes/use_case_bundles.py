@@ -5,6 +5,7 @@ from outlook_mac_mcp.application.clock import Clock
 from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
+from outlook_mac_mcp.application.event_draft import EventDraft
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_folders import ListFolders
@@ -44,7 +45,7 @@ def calendar_only_use_cases(repository: CalendarRepository, clock: Clock) -> Use
 
 def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
     """A bundle with the write pair wired to `writer` over a fresh draft store."""
-    drafts = DraftStore()
+    drafts: DraftStore[EventDraft] = DraftStore()
     write = CalendarWriteUseCases(
         preview_event=PreviewEvent(drafts), create_event=CreateEvent(drafts, writer)
     )

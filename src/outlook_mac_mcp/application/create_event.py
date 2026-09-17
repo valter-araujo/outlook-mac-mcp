@@ -1,4 +1,5 @@
 from outlook_mac_mcp.application.draft_store import DraftStore
+from outlook_mac_mcp.application.event_draft import EventDraft
 from outlook_mac_mcp.application.ports.calendar_writer import CalendarWriter
 from outlook_mac_mcp.domain.event import Event
 
@@ -11,7 +12,9 @@ class CreateEvent:
     that happened past the wire create the same event twice.
     """
 
-    def __init__(self, draft_store: DraftStore, calendar_writer: CalendarWriter) -> None:
+    def __init__(
+        self, draft_store: DraftStore[EventDraft], calendar_writer: CalendarWriter
+    ) -> None:
         self._draft_store = draft_store
         self._calendar_writer = calendar_writer
 

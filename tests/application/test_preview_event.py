@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from outlook_mac_mcp.application.draft_store import DraftStore
+from outlook_mac_mcp.application.event_draft import EventDraft
 from outlook_mac_mcp.application.event_summary import MAX_BODY_IN_SUMMARY
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.domain.email_address import EmailAddress
@@ -19,7 +20,7 @@ def all_day(days: int) -> NewEvent:
 
 
 def test_parks_the_event_in_the_store_under_the_returned_token() -> None:
-    store = DraftStore()
+    store: DraftStore[EventDraft] = DraftStore()
     event = NewEvent(subject="Planning", start=NINE, end=NINE + timedelta(hours=1))
 
     draft = PreviewEvent(store).execute(event)

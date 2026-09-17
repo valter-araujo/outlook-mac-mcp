@@ -5,6 +5,7 @@ import pytest
 
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
+from outlook_mac_mcp.application.event_draft import EventDraft
 from outlook_mac_mcp.domain.errors import DraftNotFoundError
 from outlook_mac_mcp.domain.event import Event
 from outlook_mac_mcp.domain.new_event import NewEvent
@@ -24,10 +25,18 @@ class FailingCalendarWriter:
         raise GraphRequestError("Graph returned 503", 503, "ServiceUnavailable")
 
 
+def new_store() -> DraftStore[EventDraft]:
+    return DraftStore()
+
+
+def add_draft(store: DraftStore[EventDraft], new_event: NewEvent, summary: str) -> EventDraft:
+    return store.add(lambda token: EventDraft(token=token, summary=summary, new_event=new_event))
+
+
 def test_creates_the_drafted_event_and_returns_it_as_stored() -> None:
-    store = DraftStore()
+    store = new_store()
     writer = InMemoryCalendarWriter()
-    token = store.add(AN_EVENT, "summary").token
+    token = add_draft(store, AN_EVENT, "summary").token
 
     created = CreateEvent(store, writer).execute(token)
 
@@ -37,9 +46,9 @@ def test_creates_the_drafted_event_and_returns_it_as_stored() -> None:
 
 
 def test_a_token_creates_at_most_one_event() -> None:
-    store = DraftStore()
+    store = new_store()
     writer = InMemoryCalendarWriter()
-    token = store.add(AN_EVENT, "summary").token
+    token = add_draft(store, AN_EVENT, "summary").token
     use_case = CreateEvent(store, writer)
     use_case.execute(token)
 
@@ -53,15 +62,15 @@ def test_an_unknown_token_creates_nothing() -> None:
     writer = InMemoryCalendarWriter()
 
     with pytest.raises(DraftNotFoundError):
-        CreateEvent(DraftStore(), writer).execute("never-issued")
+        CreateEvent(new_store(), writer).execute("never-issued")
 
     assert writer.created == []
 
 
 def test_a_failed_write_consumes_the_draft_so_a_retry_cannot_duplicate() -> None:
-    store = DraftStore()
+    store = new_store()
     writer = FailingCalendarWriter()
-    token = store.add(AN_EVENT, "summary").token
+    token = add_draft(store, AN_EVENT, "summary").token
     use_case = CreateEvent(store, writer)
 
     with pytest.raises(GraphRequestError):
