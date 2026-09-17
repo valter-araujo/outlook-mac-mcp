@@ -67,9 +67,7 @@ def optional_enum[E: StrEnum](
     try:
         return enum_cls(value)
     except ValueError as error:
-        raise GraphResponseError(
-            f"{field} was {value!r}, not a known {enum_cls.__name__}"
-        ) from error
+        raise GraphResponseError(f"{field} was not a known {enum_cls.__name__}") from error
 
 
 TEXT_CONTENT_TYPE = "text"
