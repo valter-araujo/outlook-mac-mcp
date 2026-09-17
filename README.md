@@ -70,7 +70,7 @@ Ordered chronologically by validation date (oldest first).
 |---|---|---|---|---|---|---|
 | 0.1.0 | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | Outlook for Mac 16.112.4 (26090911), New Outlook, M365 Subscription — not used by the server | **validated** 2026-09-14 |
 | 0.2.0 (calendar write on) | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | as above | **validated** 2026-09-15 |
-| 0.5.0 (update_event) | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | as above | **validated** 2026-09-17 |
+| 0.8.0 (through custom folders) | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | as above | **validated** 2026-09-17 |
 
 A row moves to **validated** only after the tools it names return correct results on
 that environment, against a real mailbox. Contributions of new rows are welcome — please
