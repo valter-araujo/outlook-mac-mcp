@@ -859,3 +859,26 @@ def test_count_raises_when_graph_returns_no_count(repository: GraphMailRepositor
 
     with pytest.raises(GraphResponseError):
         repository.count_matching(EmailFilters())
+
+
+@respx.mock
+def test_a_resolved_custom_folder_id_is_used_exactly_as_given(
+    repository: GraphMailRepository,
+) -> None:
+    """A custom folder's `folders` entry is a Graph id resolved elsewhere (list_custom's
+    tree walk), never a well-known name -- confirming it reaches the same URL segment a
+    FolderName would, with no enum-specific handling standing in the way.
+    """
+    unread_url = f"{GRAPH_BASE_URL}/me/mailFolders/AAMkAG-custom-unread/messages"
+    count_url = f"{GRAPH_BASE_URL}/me/mailFolders/AAMkAG-custom-count/messages"
+    unread_route = respx.get(unread_url).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
+    count_route = respx.get(count_url).mock(
+        return_value=httpx.Response(200, json={"value": [], "@odata.count": 3})
+    )
+
+    repository.list_unread(("AAMkAG-custom-unread",), limit=20)
+    total = repository.count_matching(EmailFilters(folders=("AAMkAG-custom-count",)))
+
+    assert unread_route.call_count == 1
+    assert count_route.call_count == 1
+    assert total == 3

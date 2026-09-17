@@ -40,6 +40,22 @@ def test_resolves_all_to_every_well_known_folder_with_no_repository_call() -> No
     assert "all" not in resolved.echo.split(", ")
 
 
+def test_all_still_means_only_the_five_well_known_folders_even_if_custom_ones_exist() -> None:
+    repository = InMemoryMailFolderRepository()
+    repository.set_custom(
+        CustomFolderScan(
+            folders=(make_custom_folder("Entrevistas/Work/AWS", folder_id="graph-id-1"),),
+            depth_limit_reached=False,
+            folder_limit_reached=False,
+        )
+    )
+
+    resolved = ResolveFolders(repository).execute("all")
+
+    assert set(resolved.folder_ids) == set(FolderName)
+    assert "graph-id-1" not in resolved.folder_ids
+
+
 def test_resolves_a_custom_path_to_its_graph_id() -> None:
     repository = InMemoryMailFolderRepository()
     repository.set_custom(

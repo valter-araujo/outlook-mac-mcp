@@ -8,6 +8,8 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import CallToolResult
 
 from outlook_mac_mcp.application.limits import MAX_LIMIT, MIN_LIMIT
+from outlook_mac_mcp.domain.custom_folder_scan import CustomFolderScan
+from outlook_mac_mcp.domain.custom_mail_folder import CustomMailFolder
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.folder_name import FolderName
@@ -18,6 +20,7 @@ from outlook_mac_mcp.interface.mcp.mail_listing_tools import (
 )
 from outlook_mac_mcp.interface.mcp.observability import configure_logging
 from outlook_mac_mcp.interface.mcp.server import build_server
+from tests.fakes.in_memory_mail_folder_repository import InMemoryMailFolderRepository
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 from tests.fakes.use_case_bundles import mail_only_use_cases
 from tests.interface.mcp.test_server import FailingMailRepository
@@ -127,6 +130,41 @@ async def test_folder_all_merges_every_well_known_folder() -> None:
     assert {item["id"] for item in page["items"]} == {"inboxed", "archived"}
     assert page["total"] == 2
     assert page["folder"] == "inbox, archive, junkemail, sentitems, drafts"
+
+
+async def test_a_custom_folder_path_resolves_and_scopes_the_query_to_it() -> None:
+    repository = InMemoryMailRepository()
+    repository.add("graph-id-1", make_email("caught"))
+    repository.add(FolderName.INBOX, make_email("not-this-one"))
+    folder_repository = InMemoryMailFolderRepository()
+    folder_repository.set_custom(
+        CustomFolderScan(
+            folders=(
+                CustomMailFolder(
+                    folder_id="graph-id-1",
+                    display_name="AWS",
+                    path="Entrevistas/Work/AWS",
+                    unread_count=0,
+                    total_count=0,
+                ),
+            ),
+            depth_limit_reached=False,
+            folder_limit_reached=False,
+        )
+    )
+    server = build_server(mail_only_use_cases(repository, folder_repository))
+
+    page = await call(server, LIST_EMAILS_TOOL, {"folder": "Entrevistas/Work/AWS"})
+
+    assert [item["id"] for item in page["items"]] == ["caught"]
+    assert page["folder"] == "Entrevistas/Work/AWS"
+
+
+async def test_an_unrecognized_custom_folder_path_is_a_clear_tool_error() -> None:
+    server = build_server(mail_only_use_cases(InMemoryMailRepository()))
+
+    with pytest.raises(ToolError, match="Nowhere/Such/Folder"):
+        await call(server, LIST_EMAILS_TOOL, {"folder": "Nowhere/Such/Folder"})
 
 
 async def test_passes_every_filter_through() -> None:
