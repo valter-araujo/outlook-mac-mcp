@@ -882,3 +882,20 @@ def test_a_resolved_custom_folder_id_is_used_exactly_as_given(
     assert unread_route.call_count == 1
     assert count_route.call_count == 1
     assert total == 3
+
+
+@respx.mock
+def test_a_folder_id_with_url_reserved_characters_is_percent_encoded(
+    repository: GraphMailRepository,
+) -> None:
+    """Nothing proves a resolved custom folder id can never contain a URL-reserved
+    character, so it gets the same percent-encoding as a message or event id -- proven
+    here with one that actually has some, rather than one that happens not to need it.
+    """
+    reserved_id = "id/with#reserved?chars"
+    encoded_url = f"{GRAPH_BASE_URL}/me/mailFolders/id%2Fwith%23reserved%3Fchars/messages"
+    route = respx.get(encoded_url).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
+
+    repository.list_unread((reserved_id,), limit=20)
+
+    assert route.call_count == 1

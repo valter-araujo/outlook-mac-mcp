@@ -224,7 +224,12 @@ class GraphMailRepository:
 
 
 def _messages_path(folder: str) -> str:
-    return f"/me/mailFolders/{folder}/messages"
+    """`folder` is a well-known name or a Graph-issued custom folder id, never raw
+    caller text, but percent-encoded anyway, the same as a message or event id: a
+    well-known name has no reserved characters so this changes nothing for it, and a
+    resolved custom folder id is never proven not to.
+    """
+    return f"/me/mailFolders/{quote(folder, safe='')}/messages"
 
 
 def _count_search_across(client: GraphClient, folders: tuple[str, ...], search: str) -> MatchCount:

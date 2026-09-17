@@ -183,3 +183,25 @@ def test_stops_at_the_folder_limit_and_reports_it(repository: GraphMailFolderRep
 
     assert len(scan.folders) == 2
     assert scan.folder_limit_reached is True
+
+
+@respx.mock
+def test_a_folder_id_with_url_reserved_characters_is_percent_encoded(
+    repository: GraphMailFolderRepository,
+) -> None:
+    """A discovered folder's id becomes the next parent_id when the walk recurses into
+    it -- proven here with an id that actually has reserved characters, rather than one
+    that happens not to need encoding.
+    """
+    mock_well_known_summaries()
+    mock_children(
+        "msgfolderroot",
+        page([folder_item("id/with#reserved?chars", "Reserved", child_count=1)]),
+    )
+    mock_empty_children_for_every_well_known()
+    encoded_url = f"{GRAPH_BASE_URL}/me/mailFolders/id%2Fwith%23reserved%3Fchars/childFolders"
+    route = respx.get(encoded_url).mock(return_value=httpx.Response(200, json=page([])))
+
+    repository.list_custom(max_depth=10, max_folders=200)
+
+    assert route.call_count == 1

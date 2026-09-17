@@ -21,6 +21,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any
+from urllib.parse import quote
 
 from outlook_mac_mcp.domain.custom_folder_scan import CustomFolderScan
 from outlook_mac_mcp.domain.custom_mail_folder import CustomMailFolder
@@ -104,7 +105,7 @@ def _walk_children(
     skip_ids: frozenset[str] = frozenset(),
 ) -> None:
     payload = client.get(
-        f"/me/mailFolders/{parent_id}/childFolders",
+        f"/me/mailFolders/{quote(parent_id, safe='')}/childFolders",
         {"$top": CHILD_PAGE_SIZE, "$select": ",".join(CHILD_FIELDS)},
     )
     while True:
