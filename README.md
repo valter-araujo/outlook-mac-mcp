@@ -1,5 +1,7 @@
 # outlook-mac-mcp
 
+<!-- mcp-name: io.github.valter-araujo/outlook-mac-mcp -->
+
 MCP server for Microsoft Outlook, built for **personal Microsoft accounts**
 (Hotmail, Outlook.com, Live) that run on the consumer infrastructure rather than
 Exchange Online — and are therefore not supported by the official
