@@ -4,6 +4,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.limits import DEFAULT_LIMIT
 from outlook_mac_mcp.application.list_emails import ListEmails
+from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.domain.folder_selection import FolderSelection
 from outlook_mac_mcp.domain.sort_order import SortOrder
@@ -47,11 +48,13 @@ COUNT_EMAILS_DESCRIPTION = (
 
 
 def register_mail_listing_tools(server: MCPServer, use_cases: UseCases) -> None:
-    _register_list_emails(server, use_cases.list_emails)
-    _register_count_emails(server, use_cases.count_emails)
+    _register_list_emails(server, use_cases.list_emails, use_cases.resolve_folders)
+    _register_count_emails(server, use_cases.count_emails, use_cases.resolve_folders)
 
 
-def _register_list_emails(server: MCPServer, use_case: ListEmails) -> None:
+def _register_list_emails(
+    server: MCPServer, use_case: ListEmails, resolve_folders: ResolveFolders
+) -> None:
     @server.tool(name=LIST_EMAILS_TOOL, description=LIST_EMAILS_DESCRIPTION)
     async def list_emails(
         folder: FilterFolder = FolderSelection.INBOX,
@@ -74,19 +77,24 @@ def _register_list_emails(server: MCPServer, use_case: ListEmails) -> None:
             limit=limit,
         )
         try:
-            return _translate_list(use_case, model)
+            return _translate_list(use_case, resolve_folders, model)
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
 
 
-def _translate_list(use_case: ListEmails, model: ListEmailsInput) -> EmailPageView:
+def _translate_list(
+    use_case: ListEmails, resolve_folders: ResolveFolders, model: ListEmailsInput
+) -> EmailPageView:
     with observed_tool_call(LIST_EMAILS_TOOL) as outcome:
-        page = use_case.execute(model.to_request())
+        resolved = resolve_folders.execute(model.folder)
+        page = use_case.execute(model.to_request(resolved.folder_ids))
         outcome.item_count = len(page.items)
-        return EmailPageView.from_page(page, folder=model.folder.describe_folders())
+        return EmailPageView.from_page(page, folder=resolved.echo)
 
 
-def _register_count_emails(server: MCPServer, use_case: CountEmails) -> None:
+def _register_count_emails(
+    server: MCPServer, use_case: CountEmails, resolve_folders: ResolveFolders
+) -> None:
     @server.tool(name=COUNT_EMAILS_TOOL, description=COUNT_EMAILS_DESCRIPTION)
     async def count_emails(
         folder: FilterFolder = FolderSelection.INBOX,
@@ -105,14 +113,17 @@ def _register_count_emails(server: MCPServer, use_case: CountEmails) -> None:
             has_attachments=has_attachments,
         )
         try:
-            return _translate_count(use_case, model)
+            return _translate_count(use_case, resolve_folders, model)
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
 
 
-def _translate_count(use_case: CountEmails, model: EmailFiltersInput) -> EmailCountView:
+def _translate_count(
+    use_case: CountEmails, resolve_folders: ResolveFolders, model: EmailFiltersInput
+) -> EmailCountView:
     """The logged item count is the total itself: it is the one number the call produced."""
     with observed_tool_call(COUNT_EMAILS_TOOL) as outcome:
-        total = use_case.execute(model.to_filters())
+        resolved = resolve_folders.execute(model.folder)
+        total = use_case.execute(model.to_filters(resolved.folder_ids))
         outcome.item_count = total
-        return EmailCountView(total=total, folder=model.folder.describe_folders())
+        return EmailCountView(total=total, folder=resolved.echo)

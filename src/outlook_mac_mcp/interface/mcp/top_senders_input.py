@@ -29,9 +29,9 @@ class TopSendersInput(BaseModel):
     received_before: ReceivedBefore = None
     limit: SenderLimit = DEFAULT_TOP_SENDERS
 
-    def to_request(self) -> TopSendersRequest:
+    def to_request(self, folder_ids: tuple[str, ...]) -> TopSendersRequest:
         return TopSendersRequest(
-            folders=self.folder.to_folders(),
+            folders=folder_ids,
             is_read=self.is_read,
             received_after=self.received_after,
             received_before=self.received_before,

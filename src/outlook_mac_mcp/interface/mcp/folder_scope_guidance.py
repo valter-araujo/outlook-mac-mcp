@@ -5,8 +5,10 @@ def folder_scope_guidance() -> str:
     this sentence and the output's own folder field are what make that explicit.
     """
     return (
-        "Results are scoped to folder (default inbox) only: other folders are not "
-        "included unless folder names one of them, or folder=all is passed to search "
-        "every well-known folder and merge the results. The output carries folder so a "
-        "reader can always tell which."
+        "folder accepts a well-known name (default inbox), all (the five well-known "
+        "folders only -- never custom folders), or a custom folder's full path exactly "
+        "as shown in list_folders' custom list, e.g. folder=Entrevistas/Work/AWS. "
+        "Results are scoped to folder only: other folders are not included unless "
+        "folder names one of them. The output carries folder so a reader can always "
+        "tell which."
     )

@@ -1,6 +1,7 @@
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
+from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.application.top_senders import (
     DEFAULT_TOP_SENDERS,
     SCAN_CEILING,
@@ -37,7 +38,9 @@ TOP_SENDERS_DESCRIPTION = (
 )
 
 
-def register_top_senders_tool(server: MCPServer, use_case: TopSenders) -> None:
+def register_top_senders_tool(
+    server: MCPServer, use_case: TopSenders, resolve_folders: ResolveFolders
+) -> None:
     @server.tool(name=TOP_SENDERS_TOOL, description=TOP_SENDERS_DESCRIPTION)
     async def top_senders(
         folder: FilterFolder = FolderSelection.INBOX,
@@ -54,13 +57,16 @@ def register_top_senders_tool(server: MCPServer, use_case: TopSenders) -> None:
             limit=limit,
         )
         try:
-            return _translate(use_case, model)
+            return _translate(use_case, resolve_folders, model)
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
 
 
-def _translate(use_case: TopSenders, model: TopSendersInput) -> SenderRankingView:
+def _translate(
+    use_case: TopSenders, resolve_folders: ResolveFolders, model: TopSendersInput
+) -> SenderRankingView:
     with observed_tool_call(TOP_SENDERS_TOOL) as outcome:
-        ranking = use_case.execute(model.to_request())
+        resolved = resolve_folders.execute(model.folder)
+        ranking = use_case.execute(model.to_request(resolved.folder_ids))
         outcome.item_count = len(ranking.senders)
-        return SenderRankingView.from_ranking(ranking, folder=model.folder.describe_folders())
+        return SenderRankingView.from_ranking(ranking, folder=resolved.echo)

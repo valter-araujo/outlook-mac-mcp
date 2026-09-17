@@ -26,9 +26,9 @@ class ListLargestEmailsInput(BaseModel):
     received_after: ReceivedAfter = None
     limit: LargestEmailsLimit = DEFAULT_LARGEST_EMAILS
 
-    def to_request(self) -> ListLargestEmailsRequest:
+    def to_request(self, folder_ids: tuple[str, ...]) -> ListLargestEmailsRequest:
         return ListLargestEmailsRequest(
-            folders=self.folder.to_folders(),
+            folders=folder_ids,
             is_read=self.is_read,
             received_after=self.received_after,
             limit=self.limit,

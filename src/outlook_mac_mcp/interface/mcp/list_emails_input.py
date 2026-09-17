@@ -23,5 +23,7 @@ class ListEmailsInput(EmailFiltersInput):
     sort: Sort = SortOrder.NEWEST
     limit: ListLimit = DEFAULT_LIMIT
 
-    def to_request(self) -> ListEmailsRequest:
-        return ListEmailsRequest(filters=self.to_filters(), sort=self.sort, limit=self.limit)
+    def to_request(self, folder_ids: tuple[str, ...]) -> ListEmailsRequest:
+        return ListEmailsRequest(
+            filters=self.to_filters(folder_ids), sort=self.sort, limit=self.limit
+        )

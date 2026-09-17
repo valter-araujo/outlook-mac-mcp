@@ -5,14 +5,18 @@ from pydantic import BaseModel, ConfigDict, Field
 from outlook_mac_mcp.application.limits import DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmailsRequest
 from outlook_mac_mcp.domain.folder_selection import FolderSelection
+from outlook_mac_mcp.interface.mcp.email_filters_input import MAX_FOLDER_ARGUMENT_LENGTH
 
 Folder = Annotated[
-    FolderSelection,
+    str,
     Field(
+        min_length=1,
+        max_length=MAX_FOLDER_ARGUMENT_LENGTH,
         description=(
-            "Mailbox folder to read, or all to search every well-known folder and merge "
-            "the results."
-        )
+            "Mailbox folder to read: a well-known name (default inbox), all (the five "
+            "well-known folders only -- never custom folders), or a custom folder's "
+            "full path as shown in list_folders' custom list, e.g. Entrevistas/Work/AWS."
+        ),
     ),
 ]
 Limit = Annotated[
@@ -33,5 +37,5 @@ class ListUnreadEmailsInput(BaseModel):
     folder: Folder = FolderSelection.INBOX
     limit: Limit = DEFAULT_LIMIT
 
-    def to_request(self) -> ListUnreadEmailsRequest:
-        return ListUnreadEmailsRequest(folders=self.folder.to_folders(), limit=self.limit)
+    def to_request(self, folder_ids: tuple[str, ...]) -> ListUnreadEmailsRequest:
+        return ListUnreadEmailsRequest(folders=folder_ids, limit=self.limit)

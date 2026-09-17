@@ -6,6 +6,7 @@ from outlook_mac_mcp.application.list_largest_emails import (
     SCAN_CEILING,
     ListLargestEmails,
 )
+from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.domain.folder_selection import FolderSelection
 from outlook_mac_mcp.interface.mcp.email_filters_input import FilterFolder, IsRead, ReceivedAfter
@@ -37,7 +38,9 @@ LIST_LARGEST_EMAILS_DESCRIPTION = (
 )
 
 
-def register_list_largest_emails_tool(server: MCPServer, use_case: ListLargestEmails) -> None:
+def register_list_largest_emails_tool(
+    server: MCPServer, use_case: ListLargestEmails, resolve_folders: ResolveFolders
+) -> None:
     @server.tool(name=LIST_LARGEST_EMAILS_TOOL, description=LIST_LARGEST_EMAILS_DESCRIPTION)
     async def list_largest_emails(
         folder: FilterFolder = FolderSelection.INBOX,
@@ -49,13 +52,16 @@ def register_list_largest_emails_tool(server: MCPServer, use_case: ListLargestEm
             folder=folder, is_read=is_read, received_after=received_after, limit=limit
         )
         try:
-            return _translate(use_case, model)
+            return _translate(use_case, resolve_folders, model)
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
 
 
-def _translate(use_case: ListLargestEmails, model: ListLargestEmailsInput) -> EmailSizeRankingView:
+def _translate(
+    use_case: ListLargestEmails, resolve_folders: ResolveFolders, model: ListLargestEmailsInput
+) -> EmailSizeRankingView:
     with observed_tool_call(LIST_LARGEST_EMAILS_TOOL) as outcome:
-        ranking = use_case.execute(model.to_request())
+        resolved = resolve_folders.execute(model.folder)
+        ranking = use_case.execute(model.to_request(resolved.folder_ids))
         outcome.item_count = len(ranking.items)
-        return EmailSizeRankingView.from_ranking(ranking, folder=model.folder.describe_folders())
+        return EmailSizeRankingView.from_ranking(ranking, folder=resolved.echo)

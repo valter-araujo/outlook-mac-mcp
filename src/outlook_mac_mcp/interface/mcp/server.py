@@ -4,6 +4,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.limits import DEFAULT_LIMIT
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
+from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.domain.folder_selection import FolderSelection
@@ -89,12 +90,14 @@ GET_EMAIL_DESCRIPTION = (
 
 def build_server(use_cases: UseCases) -> MCPServer:
     server = MCPServer(name=SERVER_NAME, version=SERVER_VERSION)
-    _register_list_unread_emails(server, use_cases.list_unread_emails)
-    _register_search_emails(server, use_cases.search_emails)
+    _register_list_unread_emails(server, use_cases.list_unread_emails, use_cases.resolve_folders)
+    _register_search_emails(server, use_cases.search_emails, use_cases.resolve_folders)
     _register_get_email(server, use_cases.get_email)
     register_mail_listing_tools(server, use_cases)
-    register_top_senders_tool(server, use_cases.top_senders)
-    register_list_largest_emails_tool(server, use_cases.list_largest_emails)
+    register_top_senders_tool(server, use_cases.top_senders, use_cases.resolve_folders)
+    register_list_largest_emails_tool(
+        server, use_cases.list_largest_emails, use_cases.resolve_folders
+    )
     register_list_folders_tool(server, use_cases.list_folders, use_cases.list_custom_folders)
     register_search_contacts_tool(server, use_cases.search_contacts)
     register_calendar_tools(server, use_cases)
@@ -103,26 +106,32 @@ def build_server(use_cases: UseCases) -> MCPServer:
     return server
 
 
-def _register_list_unread_emails(server: MCPServer, use_case: ListUnreadEmails) -> None:
+def _register_list_unread_emails(
+    server: MCPServer, use_case: ListUnreadEmails, resolve_folders: ResolveFolders
+) -> None:
     @server.tool(name=LIST_UNREAD_EMAILS_TOOL, description=LIST_UNREAD_EMAILS_DESCRIPTION)
     async def list_unread_emails(
         folder: Folder = FolderSelection.INBOX,
         limit: Limit = DEFAULT_LIMIT,
     ) -> EmailPageView:
         try:
-            return _translate(use_case, ListUnreadEmailsInput(folder=folder, limit=limit))
+            model = ListUnreadEmailsInput(folder=folder, limit=limit)
+            return _translate(use_case, resolve_folders, model)
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
 
 
-def _translate(use_case: ListUnreadEmails, model: ListUnreadEmailsInput) -> EmailPageView:
+def _translate(
+    use_case: ListUnreadEmails, resolve_folders: ResolveFolders, model: ListUnreadEmailsInput
+) -> EmailPageView:
     """Observe from inside the error translation, so the log names the project error type
     rather than the ToolError it is about to become.
     """
     with observed_tool_call(LIST_UNREAD_EMAILS_TOOL) as outcome:
-        page = use_case.execute(model.to_request())
+        resolved = resolve_folders.execute(model.folder)
+        page = use_case.execute(model.to_request(resolved.folder_ids))
         outcome.item_count = len(page.items)
-        return EmailPageView.from_page(page, folder=model.folder.describe_folders())
+        return EmailPageView.from_page(page, folder=resolved.echo)
 
 
 def _register_get_email(server: MCPServer, use_case: GetEmail) -> None:
@@ -141,7 +150,9 @@ def _translate_detail(use_case: GetEmail, model: GetEmailInput) -> EmailDetailVi
         return EmailDetailView.from_detail(detail)
 
 
-def _register_search_emails(server: MCPServer, use_case: SearchEmails) -> None:
+def _register_search_emails(
+    server: MCPServer, use_case: SearchEmails, resolve_folders: ResolveFolders
+) -> None:
     @server.tool(name=SEARCH_EMAILS_TOOL, description=SEARCH_EMAILS_DESCRIPTION)
     async def search_emails(
         term: Term,
@@ -151,18 +162,19 @@ def _register_search_emails(server: MCPServer, use_case: SearchEmails) -> None:
         page_token: PageToken | None = None,
     ) -> EmailSearchPageView:
         try:
-            return _translate_search(
-                use_case,
-                SearchEmailsInput(
-                    term=term, folder=folder, scope=scope, limit=limit, page_token=page_token
-                ),
+            model = SearchEmailsInput(
+                term=term, folder=folder, scope=scope, limit=limit, page_token=page_token
             )
+            return _translate_search(use_case, resolve_folders, model)
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
 
 
-def _translate_search(use_case: SearchEmails, model: SearchEmailsInput) -> EmailSearchPageView:
+def _translate_search(
+    use_case: SearchEmails, resolve_folders: ResolveFolders, model: SearchEmailsInput
+) -> EmailSearchPageView:
     with observed_tool_call(SEARCH_EMAILS_TOOL) as outcome:
-        page = use_case.execute(model.to_request())
+        resolved = resolve_folders.execute(model.folder)
+        page = use_case.execute(model.to_request(resolved.folder_ids))
         outcome.item_count = len(page.items)
-        return EmailSearchPageView.from_page(page, folder=model.folder.describe_folders())
+        return EmailSearchPageView.from_page(page, folder=resolved.echo)
