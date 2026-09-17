@@ -33,7 +33,7 @@ ARCHIVE_URL = f"{GRAPH_BASE_URL}/me/mailFolders/archive/messages"
 MESSAGE_URL = f"{GRAPH_BASE_URL}/me/messages"
 AN_ID = "AAMkAGI2"
 NOTHING_UNREAD = {"value": [], "@odata.count": 0}
-A_SEARCH_REQUEST = SearchEmailsRequest(term="deck", folder=FolderName.INBOX, limit=20)
+A_SEARCH_REQUEST = SearchEmailsRequest(term="deck", folders=(FolderName.INBOX,), limit=20)
 
 
 def graph_message(message_id: str, *, received_at: str = "2026-09-14T12:30:00Z") -> dict[str, Any]:
@@ -69,7 +69,7 @@ def test_satisfies_the_mail_repository_port(repository: GraphMailRepository) -> 
 def test_asks_graph_for_unread_messages_newest_first(repository: GraphMailRepository) -> None:
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
-    repository.list_unread(FolderName.INBOX, limit=20)
+    repository.list_unread((FolderName.INBOX,), limit=20)
 
     parameters = dict(route.calls.last.request.url.params)
     assert parameters["$filter"] == "isRead eq false"
@@ -81,7 +81,7 @@ def test_asks_graph_for_unread_messages_newest_first(repository: GraphMailReposi
 def test_passes_the_limit_through_as_the_page_size(repository: GraphMailRepository) -> None:
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
-    repository.list_unread(FolderName.INBOX, limit=3)
+    repository.list_unread((FolderName.INBOX,), limit=3)
 
     assert dict(route.calls.last.request.url.params)["$top"] == "3"
 
@@ -90,7 +90,7 @@ def test_passes_the_limit_through_as_the_page_size(repository: GraphMailReposito
 def test_requests_only_the_fields_the_domain_needs(repository: GraphMailRepository) -> None:
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
-    repository.list_unread(FolderName.INBOX, limit=20)
+    repository.list_unread((FolderName.INBOX,), limit=20)
 
     selected = dict(route.calls.last.request.url.params)["$select"].split(",")
     assert "bodyPreview" in selected
@@ -101,9 +101,68 @@ def test_requests_only_the_fields_the_domain_needs(repository: GraphMailReposito
 def test_reads_the_requested_folder(repository: GraphMailRepository) -> None:
     archive = respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
-    repository.list_unread(FolderName.ARCHIVE, limit=20)
+    repository.list_unread((FolderName.ARCHIVE,), limit=20)
 
     assert archive.call_count == 1
+
+
+@respx.mock
+def test_more_than_one_folder_merges_newest_first_and_sums_the_totals(
+    repository: GraphMailRepository,
+) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [graph_message("inbox-one", received_at="2026-09-14T08:00:00Z")],
+                "@odata.count": 5,
+            },
+        )
+    )
+    respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [graph_message("archive-one", received_at="2026-09-14T12:00:00Z")],
+                "@odata.count": 3,
+            },
+        )
+    )
+
+    page = repository.list_unread((FolderName.INBOX, FolderName.ARCHIVE), limit=20)
+
+    assert [email.id for email in page.items] == ["archive-one", "inbox-one"]
+    assert page.total == 8
+    assert page.total_is_exact is True
+
+
+@respx.mock
+def test_more_than_one_folder_truncates_the_merged_list_to_the_limit(
+    repository: GraphMailRepository,
+) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [graph_message("inbox-one", received_at="2026-09-14T12:00:00Z")],
+                "@odata.count": 1,
+            },
+        )
+    )
+    respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [graph_message("archive-one", received_at="2026-09-14T08:00:00Z")],
+                "@odata.count": 1,
+            },
+        )
+    )
+
+    page = repository.list_unread((FolderName.INBOX, FolderName.ARCHIVE), limit=1)
+
+    assert [email.id for email in page.items] == ["inbox-one"]
+    assert page.total == 2
 
 
 @respx.mock
@@ -123,7 +182,7 @@ def test_maps_every_returned_message_in_the_order_graph_gave_them(
         )
     )
 
-    emails = repository.list_unread(FolderName.INBOX, limit=20).items
+    emails = repository.list_unread((FolderName.INBOX,), limit=20).items
 
     assert [email.id for email in emails] == ["newest", "oldest"]
     assert emails[0].received_at == datetime(2026, 9, 14, 12, 30, tzinfo=UTC)
@@ -133,7 +192,7 @@ def test_maps_every_returned_message_in_the_order_graph_gave_them(
 def test_returns_empty_when_the_folder_has_no_unread(repository: GraphMailRepository) -> None:
     respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
-    page = repository.list_unread(FolderName.INBOX, limit=20)
+    page = repository.list_unread((FolderName.INBOX,), limit=20)
 
     assert page == Page(items=(), total=0, total_is_exact=True)
 
@@ -144,7 +203,7 @@ def test_asks_graph_to_count_the_unread_in_the_same_request(
 ) -> None:
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
-    repository.list_unread(FolderName.INBOX, limit=20)
+    repository.list_unread((FolderName.INBOX,), limit=20)
 
     assert dict(route.calls.last.request.url.params)["$count"] == "true"
     assert route.call_count == 1
@@ -158,7 +217,7 @@ def test_reports_the_folder_count_as_an_exact_total(repository: GraphMailReposit
         )
     )
 
-    page = repository.list_unread(FolderName.INBOX, limit=2)
+    page = repository.list_unread((FolderName.INBOX,), limit=2)
 
     assert len(page.items) == 2
     assert page.total == 57
@@ -170,7 +229,7 @@ def test_raises_when_the_count_is_missing(repository: GraphMailRepository) -> No
     respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
     with pytest.raises(GraphResponseError):
-        repository.list_unread(FolderName.INBOX, limit=20)
+        repository.list_unread((FolderName.INBOX,), limit=20)
 
 
 @respx.mock
@@ -180,7 +239,7 @@ def test_raises_when_the_count_is_not_a_number(repository: GraphMailRepository) 
     )
 
     with pytest.raises(GraphResponseError):
-        repository.list_unread(FolderName.INBOX, limit=20)
+        repository.list_unread((FolderName.INBOX,), limit=20)
 
 
 @respx.mock
@@ -192,7 +251,7 @@ def test_raises_when_graph_rejects_the_filter_and_sort_combination(
     )
 
     with pytest.raises(GraphRequestError, match="InefficientFilter"):
-        repository.list_unread(FolderName.INBOX, limit=20)
+        repository.list_unread((FolderName.INBOX,), limit=20)
 
 
 @respx.mock
@@ -200,7 +259,7 @@ def test_raises_when_the_collection_has_no_value_array(repository: GraphMailRepo
     respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"error": None}))
 
     with pytest.raises(GraphResponseError):
-        repository.list_unread(FolderName.INBOX, limit=20)
+        repository.list_unread((FolderName.INBOX,), limit=20)
 
 
 @respx.mock
@@ -210,7 +269,7 @@ def test_raises_when_the_collection_holds_something_that_is_not_a_message(
     respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": ["not-a-message"]}))
 
     with pytest.raises(GraphResponseError):
-        repository.list_unread(FolderName.INBOX, limit=20)
+        repository.list_unread((FolderName.INBOX,), limit=20)
 
 
 @respx.mock
@@ -340,7 +399,7 @@ def test_search_sends_the_term_as_a_quoted_phrase(repository: GraphMailRepositor
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
     repository.search(
-        SearchEmailsRequest(term="quarterly review", folder=FolderName.INBOX, limit=20)
+        SearchEmailsRequest(term="quarterly review", folders=(FolderName.INBOX,), limit=20)
     )
 
     assert dict(route.calls.last.request.url.params)["$search"] == '"\\"quarterly review\\""'
@@ -351,7 +410,7 @@ def test_search_never_sends_an_orderby(repository: GraphMailRepository) -> None:
     """Graph rejects $orderby alongside $search, so relevance order is not negotiable."""
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
-    repository.search(SearchEmailsRequest(term="deck", folder=FolderName.INBOX, limit=20))
+    repository.search(SearchEmailsRequest(term="deck", folders=(FolderName.INBOX,), limit=20))
 
     assert "$orderby" not in dict(route.calls.last.request.url.params)
 
@@ -360,7 +419,7 @@ def test_search_never_sends_an_orderby(repository: GraphMailRepository) -> None:
 def test_search_bounds_the_page_with_top(repository: GraphMailRepository) -> None:
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
-    repository.search(SearchEmailsRequest(term="deck", folder=FolderName.INBOX, limit=7))
+    repository.search(SearchEmailsRequest(term="deck", folders=(FolderName.INBOX,), limit=7))
 
     assert dict(route.calls.last.request.url.params)["$top"] == "7"
 
@@ -369,9 +428,65 @@ def test_search_bounds_the_page_with_top(repository: GraphMailRepository) -> Non
 def test_search_reads_the_requested_folder(repository: GraphMailRepository) -> None:
     archive = respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
-    repository.search(SearchEmailsRequest(term="deck", folder=FolderName.ARCHIVE, limit=20))
+    repository.search(SearchEmailsRequest(term="deck", folders=(FolderName.ARCHIVE,), limit=20))
 
     assert archive.call_count == 1
+
+
+@respx.mock
+def test_search_more_than_one_folder_concatenates_grouped_by_folder(
+    repository: GraphMailRepository,
+) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(200, json={"value": [graph_message("inbox-hit")]})
+    )
+    respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(200, json={"value": [graph_message("archive-hit")]})
+    )
+
+    page = repository.search(
+        SearchEmailsRequest(term="deck", folders=(FolderName.INBOX, FolderName.ARCHIVE), limit=20)
+    )
+
+    assert [email.id for email in page.items] == ["inbox-hit", "archive-hit"]
+    assert page.total == 2
+    assert page.total_is_exact is True
+    assert page.next_page_token is None
+
+
+@respx.mock
+def test_search_more_than_one_folder_recounts_across_every_folder(
+    repository: GraphMailRepository,
+) -> None:
+    """Neither folder's own page is the last one, so the cheap shortcut cannot apply:
+    the total is the real count, summed across both folders.
+    """
+    next_link = f"{INBOX_URL}?%24skip=1"
+    # The $select=id-specific routes must be registered before the bare ones: respx
+    # matches in registration order, and a bare route matches any query to that path,
+    # including the count walk's, unless a more specific route was already checked.
+    respx.get(INBOX_URL, params__contains={"$select": "id"}).mock(
+        return_value=httpx.Response(200, json={"value": [{"id": "1"}, {"id": "2"}]})
+    )
+    respx.get(ARCHIVE_URL, params__contains={"$select": "id"}).mock(
+        return_value=httpx.Response(200, json={"value": [{"id": "1"}]})
+    )
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(
+            200, json={"value": [graph_message("inbox-hit")], "@odata.nextLink": next_link}
+        )
+    )
+    respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(200, json={"value": [graph_message("archive-hit")]})
+    )
+
+    page = repository.search(
+        SearchEmailsRequest(term="deck", folders=(FolderName.INBOX, FolderName.ARCHIVE), limit=20)
+    )
+
+    assert page.total == 3
+    assert page.total_is_exact is True
+    assert page.next_page_token is None
 
 
 @respx.mock
@@ -381,7 +496,9 @@ def test_search_sends_an_operator_like_term_as_literal_text(
     route = respx.get(INBOX_URL).mock(return_value=httpx.Response(200, json={"value": []}))
 
     repository.search(
-        SearchEmailsRequest(term="deck AND from:ceo@example.com", folder=FolderName.INBOX, limit=20)
+        SearchEmailsRequest(
+            term="deck AND from:ceo@example.com", folders=(FolderName.INBOX,), limit=20
+        )
     )
 
     sent = dict(route.calls.last.request.url.params)["$search"]
@@ -397,7 +514,7 @@ def test_search_refuses_a_term_that_tries_to_close_the_phrase(
     with pytest.raises(InvalidRequestError):
         repository.search(
             SearchEmailsRequest(
-                term='deck" AND from:ceo@example.com "', folder=FolderName.INBOX, limit=20
+                term='deck" AND from:ceo@example.com "', folders=(FolderName.INBOX,), limit=20
             )
         )
 
@@ -633,7 +750,7 @@ def test_list_sends_no_filter_when_nothing_is_restricted(repository: GraphMailRe
 def test_list_reads_the_requested_folder(repository: GraphMailRepository) -> None:
     archive = respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json=NOTHING_UNREAD))
 
-    repository.list_matching(ListEmailsRequest(filters=EmailFilters(folder=FolderName.ARCHIVE)))
+    repository.list_matching(ListEmailsRequest(filters=EmailFilters(folders=(FolderName.ARCHIVE,))))
 
     assert archive.call_count == 1
 
@@ -662,6 +779,38 @@ def test_list_raises_when_the_count_is_missing(repository: GraphMailRepository) 
 
 
 @respx.mock
+def test_list_more_than_one_folder_merges_and_sums_the_totals(
+    repository: GraphMailRepository,
+) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [graph_message("inbox-one", received_at="2026-09-14T08:00:00Z")],
+                "@odata.count": 10,
+            },
+        )
+    )
+    respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [graph_message("archive-one", received_at="2026-09-14T12:00:00Z")],
+                "@odata.count": 4,
+            },
+        )
+    )
+
+    page = repository.list_matching(
+        ListEmailsRequest(filters=EmailFilters(folders=(FolderName.INBOX, FolderName.ARCHIVE)))
+    )
+
+    assert [email.id for email in page.items] == ["archive-one", "inbox-one"]
+    assert page.total == 14
+    assert page.total_is_exact is True
+
+
+@respx.mock
 def test_count_asks_for_the_number_and_the_smallest_page(repository: GraphMailRepository) -> None:
     route = respx.get(INBOX_URL).mock(
         return_value=httpx.Response(200, json={"value": [{"id": "x"}], "@odata.count": 1204})
@@ -686,8 +835,22 @@ def test_count_without_filters_counts_the_whole_folder(repository: GraphMailRepo
         return_value=httpx.Response(200, json={"value": [], "@odata.count": 0})
     )
 
-    assert repository.count_matching(EmailFilters(folder=FolderName.ARCHIVE)) == 0
+    assert repository.count_matching(EmailFilters(folders=(FolderName.ARCHIVE,))) == 0
     assert "$filter" not in dict(route.calls.last.request.url.params)
+
+
+@respx.mock
+def test_count_more_than_one_folder_sums_each_exact_count(repository: GraphMailRepository) -> None:
+    respx.get(INBOX_URL).mock(
+        return_value=httpx.Response(200, json={"value": [], "@odata.count": 7})
+    )
+    respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(200, json={"value": [], "@odata.count": 2})
+    )
+
+    total = repository.count_matching(EmailFilters(folders=(FolderName.INBOX, FolderName.ARCHIVE)))
+
+    assert total == 9
 
 
 @respx.mock

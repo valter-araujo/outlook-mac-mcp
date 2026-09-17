@@ -8,7 +8,7 @@ whether the ranking covers everything, and how many examined messages carried ne
 form of the property and were skipped rather than sized.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from time import perf_counter
 from typing import Any
 
@@ -36,15 +36,58 @@ SIZE_SCAN_EXPAND = (
     f"$filter=id eq '{MESSAGE_SIZE_PROPERTY_ID_INTEGER}' or "
     f"id eq '{MESSAGE_SIZE_PROPERTY_ID_LONG}')"
 )
+# The smallest page Graph accepts, for a folder the ceiling has no budget left for: its
+# exact total still costs one request, just not a walk through its messages.
+COUNT_ONLY_PAGE_SIZE = 1
+ID_ONLY_SELECT = "id"
 COUNT_FIELD = "@odata.count"
 EMAIL_SIZE_SCAN_EVENT = "email_size_scan"
 
 
 def scan_email_sizes(
-    client: GraphClient, path: str, filters: EmailFilters, ceiling: int
+    client: GraphClient, paths: Sequence[str], filters: EmailFilters, ceiling: int
 ) -> EmailSizeScan:
-    """Only counts and timings are logged: a subject or a size is mailbox content."""
+    """Only counts and timings are logged: a subject or a size is mailbox content.
+
+    More than one path shares one ceiling across all of them, the same bound a single
+    folder's walk already respects: once messages examined (sized or skipped) reach it,
+    every further folder gets only the cheap count call `total` always needs, never a
+    walk through its messages. Each folder's own total is exact regardless of how much
+    of it the walk actually covers -- it is one $count=true away, and that request
+    happens whether or not the ceiling has room left.
+    """
     started_at = perf_counter()
+    sizes: list[EmailSize] = []
+    skipped = 0
+    total = 0
+    coverage_is_complete = True
+    pages = 0
+    for path in paths:
+        budget = ceiling - (len(sizes) + skipped)
+        if budget <= 0:
+            total += _count_only(client, path, filters)
+            coverage_is_complete = False
+            continue
+        folder_sizes, folder_skipped, folder_total, folder_pages, folder_complete = (
+            _walk_one_folder(client, path, filters, budget)
+        )
+        sizes.extend(folder_sizes)
+        skipped += folder_skipped
+        total += folder_total
+        pages += folder_pages
+        coverage_is_complete = coverage_is_complete and folder_complete
+    _log(pages, len(sizes) + skipped, skipped, started_at)
+    return EmailSizeScan(
+        items=tuple(sizes), skipped=skipped, total=total, coverage_is_complete=coverage_is_complete
+    )
+
+
+def _walk_one_folder(
+    client: GraphClient, path: str, filters: EmailFilters, ceiling: int
+) -> tuple[list[EmailSize], int, int, int, bool]:
+    """One folder's own walk, exactly as when there was only ever one folder to scan;
+    `ceiling` here is however much budget this folder gets, not the tool's own ceiling.
+    """
     payload = client.get(
         path,
         {
@@ -67,13 +110,14 @@ def scan_email_sizes(
         overflowed, newly_skipped = _collect(payload, sizes, skipped, ceiling)
         skipped += newly_skipped
         next_link = read_next_link(payload)
-    _log(pages, len(sizes) + skipped, skipped, started_at)
-    return EmailSizeScan(
-        items=tuple(sizes),
-        skipped=skipped,
-        total=total,
-        coverage_is_complete=not overflowed and next_link is None,
+    return sizes, skipped, total, pages, not overflowed and next_link is None
+
+
+def _count_only(client: GraphClient, path: str, filters: EmailFilters) -> int:
+    payload = client.get(
+        path, {**count_query(filters), "$top": COUNT_ONLY_PAGE_SIZE, "$select": ID_ONLY_SELECT}
     )
+    return _read_count(payload)
 
 
 def _collect(

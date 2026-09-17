@@ -19,6 +19,8 @@ from outlook_mac_mcp.interface.mcp.observability import configure_logging
 
 INBOX_PATH = "/me/mailFolders/inbox/messages"
 INBOX_URL = f"{GRAPH_BASE_URL}{INBOX_PATH}"
+ARCHIVE_PATH = "/me/mailFolders/archive/messages"
+ARCHIVE_URL = f"{GRAPH_BASE_URL}{ARCHIVE_PATH}"
 A_CEILING = 5
 
 
@@ -64,7 +66,7 @@ def test_asks_for_senders_only_in_the_largest_page_with_the_filter_and_count(
 ) -> None:
     route = mock_first(page([], total=0))
 
-    scan_senders(client, INBOX_PATH, EmailFilters(is_read=False), A_CEILING)
+    scan_senders(client, [INBOX_PATH], EmailFilters(is_read=False), A_CEILING)
 
     parameters = dict(route.calls.last.request.url.params)
     assert parameters["$select"] == "from"
@@ -78,7 +80,7 @@ def test_asks_for_senders_only_in_the_largest_page_with_the_filter_and_count(
 def test_returns_every_sender_of_a_single_page_with_full_coverage(client: GraphClient) -> None:
     mock_first(page(["a@x.io", "b@x.io", "a@x.io"], total=3))
 
-    scan = scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+    scan = scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
     assert addresses_of(scan.senders) == ["a@x.io", "b@x.io", "a@x.io"]
     assert scan.scanned == 3
@@ -92,7 +94,7 @@ def test_follows_every_page_and_keeps_the_total_from_the_first(client: GraphClie
     last = mock_page(3, page(["d@x.io"], total=3))
     mock_first(page(["a@x.io", "b@x.io"], total=4, next_page=2))
 
-    scan = scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+    scan = scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
     assert addresses_of(scan.senders) == ["a@x.io", "b@x.io", "c@x.io", "d@x.io"]
     assert scan.total == 4
@@ -105,7 +107,7 @@ def test_stops_mid_page_at_the_ceiling_and_reports_partial_coverage(client: Grap
     beyond = mock_page(2, page(["never@x.io"], total=8))
     mock_first(page([f"{n}@x.io" for n in range(8)], total=8, next_page=2))
 
-    scan = scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+    scan = scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
     assert scan.scanned == A_CEILING
     assert addresses_of(scan.senders) == [f"{n}@x.io" for n in range(A_CEILING)]
@@ -119,7 +121,7 @@ def test_a_last_page_that_overflows_the_ceiling_is_still_partial(client: GraphCl
     mock_page(2, page(["d@x.io", "e@x.io", "f@x.io"], total=6))
     mock_first(page(["a@x.io", "b@x.io", "c@x.io"], total=6, next_page=2))
 
-    scan = scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+    scan = scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
     assert scan.scanned == A_CEILING
     assert scan.coverage_is_complete is False
@@ -131,7 +133,7 @@ def test_a_scan_that_lands_exactly_on_the_ceiling_with_no_more_pages_is_complete
 ) -> None:
     mock_first(page([f"{n}@x.io" for n in range(A_CEILING)], total=A_CEILING))
 
-    scan = scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+    scan = scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
     assert scan.scanned == A_CEILING
     assert scan.coverage_is_complete is True
@@ -142,7 +144,7 @@ def test_does_not_fetch_a_further_page_once_the_ceiling_is_reached(client: Graph
     beyond = mock_page(2, page(["never@x.io"], total=6))
     mock_first(page([f"{n}@x.io" for n in range(A_CEILING)], total=6, next_page=2))
 
-    scan = scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+    scan = scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
     assert scan.coverage_is_complete is False
     assert beyond.call_count == 0
@@ -152,9 +154,41 @@ def test_does_not_fetch_a_further_page_once_the_ceiling_is_reached(client: Graph
 def test_scans_a_message_with_no_sender_as_an_empty_address(client: GraphClient) -> None:
     mock_first({"value": [{"id": "draft"}, message_from("a@x.io")], "@odata.count": 2})
 
-    scan = scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+    scan = scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
     assert addresses_of(scan.senders) == ["", "a@x.io"]
+
+
+@respx.mock
+def test_more_than_one_path_with_room_in_both_scans_normally(client: GraphClient) -> None:
+    mock_first(page(["a@x.io", "b@x.io"], total=2))
+    respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(200, json=page(["c@x.io"], total=1)))
+
+    scan = scan_senders(client, [INBOX_PATH, ARCHIVE_PATH], EmailFilters(), A_CEILING)
+
+    assert addresses_of(scan.senders) == ["a@x.io", "b@x.io", "c@x.io"]
+    assert scan.total == 3
+    assert scan.coverage_is_complete is True
+
+
+@respx.mock
+def test_more_than_one_path_shares_one_ceiling_across_both(client: GraphClient) -> None:
+    """The first path alone exhausts the ceiling, so the second must never be walked --
+    only its exact count, one cheap request, folds into the total.
+    """
+    mock_first(page([f"{n}@x.io" for n in range(A_CEILING)], total=A_CEILING))
+    archive_count = respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(200, json={"value": [{"id": "x"}], "@odata.count": 9})
+    )
+
+    scan = scan_senders(client, [INBOX_PATH, ARCHIVE_PATH], EmailFilters(), A_CEILING)
+
+    assert scan.scanned == A_CEILING
+    assert scan.total == A_CEILING + 9
+    assert scan.coverage_is_complete is False
+    parameters = dict(archive_count.calls.last.request.url.params)
+    assert parameters["$top"] == "1"
+    assert parameters["$select"] == "id"
 
 
 @respx.mock
@@ -162,7 +196,7 @@ def test_raises_when_the_count_is_missing(client: GraphClient) -> None:
     mock_first({"value": []})
 
     with pytest.raises(GraphResponseError):
-        scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+        scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
 
 @respx.mock
@@ -173,7 +207,7 @@ def test_logs_pages_scanned_and_duration_but_never_an_address(
     mock_page(2, page(["secret@x.io"], total=2))
     mock_first(page(["ceo@x.io"], total=2, next_page=2))
 
-    scan_senders(client, INBOX_PATH, EmailFilters(), A_CEILING)
+    scan_senders(client, [INBOX_PATH], EmailFilters(), A_CEILING)
 
     captured = capsys.readouterr()
     assert captured.out == ""
