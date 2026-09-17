@@ -102,8 +102,8 @@ above. Search quoting is additionally covered by a live positive-control check, 
 
 ## Tools
 
-Read tools are always registered. `preview_event` and `create_event` are registered
-only when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
+Read tools are always registered. The six write tools below are registered only when
+`OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 [Optional: calendar write](#optional-calendar-write)).
 
 | Tool | What it does |
@@ -120,6 +120,10 @@ only when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 | `search_contacts` | Search contacts by a display-name prefix or an exact email address. |
 | `preview_event` (v2, flagged) | Validate a new event and return a token and a summary, without creating it. |
 | `create_event` (v2, flagged) | Create the event previewed under a token from `preview_event`. |
+| `preview_event_update` (v2, flagged) | Fetch an existing event, validate the requested changes, and return a token and a diff summary (old value -> new value, changed fields only), without applying anything. |
+| `update_event` (v2, flagged) | Apply the change previewed under a token from `preview_event_update`. Only the fields actually passed to the preview are changed. |
+| `preview_event_deletion` (v2, flagged) | Fetch an existing event and return a token and a summary showing every field, unabbreviated, without deleting anything. |
+| `delete_event` (v2, flagged) | Delete the event previewed under a token from `preview_event_deletion`. Irreversible. |
 
 ## Security model
 
@@ -298,7 +302,7 @@ Three things this configuration has to get right:
   `which uv` (typically `~/.local/bin/uv`).
 
 Restart Claude Desktop. `list_unread_emails` and the other read tools should appear in
-the tool list; `preview_event` and `create_event` appear only with the write flag on.
+the tool list; the six calendar-write tools appear only with the write flag on.
 
 ### Optional: log level
 
@@ -336,20 +340,36 @@ uv run outlook-mac-mcp sign-in
 Turning the flag off again does not shrink the consent already granted; revoke it at
 <https://account.live.com/consent/Manage> if you want the write permission gone.
 
-With the flag on, two tools appear. Creating an event is always a two-step handshake:
+With the flag on, six tools appear, as three independent preview-then-confirm pairs:
+create, update and delete. Each pair is always a two-step handshake, and each has its
+own token namespace — a token from one pair is refused by every other pair's apply
+tool, not just reused within its own.
 
-1. `preview_event` takes the full details (subject, start, end with UTC offsets,
-   optional location, all-day flag, up to 50 attendee addresses), validates them, and
-   returns a one-line summary plus an opaque token. Nothing is written.
-2. `create_event` takes only that token and performs the real change. A token works
-   exactly once and only within the same server process; an unknown or already used
-   token is refused, and a server restart discards every pending draft.
+1. `preview_event` takes the full details of a new event (subject, start, end with UTC
+   offsets, optional location, all-day flag, up to 50 attendee addresses), validates
+   them, and returns a one-line summary plus an opaque token. Nothing is written.
+   `create_event` takes only that token and performs the real change.
+2. `preview_event_update` takes an event id and any subset of the same fields, fetches
+   the current event, and returns a token plus a summary showing the diff for each
+   changed field as old value -> new value — never just the resulting state. A field
+   left out of the call is left exactly as it is. `update_event` takes only that token
+   and applies just the changed fields.
+3. `preview_event_deletion` takes an event id, fetches the current event, and returns a
+   token plus a summary showing every field of the event, unabbreviated — subject,
+   start, end, location, body and attendees — so the confirmation shows exactly what
+   would be removed. This matters most when two similar events exist and only their
+   full detail tells them apart. `delete_event` takes only that token and deletes the
+   event; this cannot be undone by the server.
 
-Both tool descriptions instruct the client to show the summary and get the user's
-agreement before creating, and to get explicit confirmation of every detail before even
+Every apply tool's token works exactly once and only within the same server process;
+an unknown token, an already used token, or a token issued by a different pair's
+preview tool is refused, and a server restart discards every pending draft.
+
+Every tool description instructs the client to show the summary and get the user's
+agreement before applying, and to get explicit confirmation of every detail before even
 previewing when any of it came from email content. Email is untrusted input; a message
-can be written to talk a model into putting something on your calendar, and the user,
-never the email, decides.
+can be written to talk a model into changing your calendar, and the user, never the
+email, decides.
 
 ### Troubleshooting
 
