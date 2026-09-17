@@ -87,16 +87,6 @@ def test_posts_the_event_payload_to_the_default_calendar(writer: GraphCalendarWr
 
 
 @respx.mock
-def test_asks_for_the_created_event_in_the_resolved_zone(writer: GraphCalendarWriter) -> None:
-    """No body: the Prefer header is exactly what it was before body support existed."""
-    route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED))
-
-    writer.create(A_NEW_EVENT)
-
-    assert route.calls.last.request.headers["Prefer"] == 'outlook.timezone="America/Sao_Paulo"'
-
-
-@respx.mock
 def test_sends_the_body_as_plain_text(writer: GraphCalendarWriter) -> None:
     route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED_WITH_BODY))
 
@@ -107,12 +97,21 @@ def test_sends_the_body_as_plain_text(writer: GraphCalendarWriter) -> None:
 
 
 @respx.mock
-def test_asks_for_the_zone_and_a_text_body_together_when_a_body_is_sent(
-    writer: GraphCalendarWriter,
+@pytest.mark.parametrize(
+    "new_event", [A_NEW_EVENT, A_NEW_EVENT_WITH_BODY], ids=["no_body", "with_body"]
+)
+def test_always_asks_for_the_zone_and_a_text_body_on_create(
+    writer: GraphCalendarWriter, new_event: NewEvent
 ) -> None:
-    route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED_WITH_BODY))
+    """Regression test: reproduced live against a real mailbox, an event created with
+    no body at all still came back from Graph with a `body` property, defaulted to an
+    Exchange-generated HTML wrapper (not the text default this preference used to be
+    skipped on the assumption of). The preference must be unconditional, on create as
+    much as on get_by_id and update, or create_event fails on every event with no body.
+    """
+    route = respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=CREATED))
 
-    writer.create(A_NEW_EVENT_WITH_BODY)
+    writer.create(new_event)
 
     assert route.calls.last.request.headers["Prefer"] == (
         'outlook.timezone="America/Sao_Paulo", outlook.body-content-type="text"'

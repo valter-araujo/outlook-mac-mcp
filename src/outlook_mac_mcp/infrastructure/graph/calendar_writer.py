@@ -45,7 +45,7 @@ class GraphCalendarWriter:
         payload = self._client.post(
             EVENTS_PATH,
             to_event_payload(new_event, self._timezone),
-            self._create_headers(new_event),
+            self._body_read_headers(),
         )
         return to_event(payload)
 
@@ -54,7 +54,7 @@ class GraphCalendarWriter:
             payload = self._client.get(
                 f"{EVENTS_PATH}/{quote(event_id, safe='')}",
                 {"$select": ",".join(EVENT_DETAIL_FIELDS)},
-                self._detail_headers(),
+                self._body_read_headers(),
             )
         except GraphRequestError as error:
             if error.status_code == HTTPStatus.NOT_FOUND:
@@ -68,7 +68,7 @@ class GraphCalendarWriter:
             payload = self._client.patch(
                 f"{EVENTS_PATH}/{quote(changes.event_id, safe='')}",
                 to_event_patch_payload(changes, is_all_day, self._timezone),
-                self._detail_headers(),
+                self._body_read_headers(),
             )
         except GraphRequestError as error:
             if error.status_code == HTTPStatus.NOT_FOUND:
@@ -92,19 +92,15 @@ class GraphCalendarWriter:
             return False
         return self.get_by_id(changes.event_id).is_all_day
 
-    def _create_headers(self, new_event: NewEvent) -> dict[str, str]:
-        """A text-body preference is only added when a body is actually being sent: with
-        none, the response has nothing to be read back as HTML by default, and the
-        request stays exactly what it was before this preference existed.
-        """
-        timezone = timezone_preference(self._timezone)
-        if not new_event.body:
-            return timezone
-        return combined_preference(timezone, text_body_preference())
+    def _body_read_headers(self) -> dict[str, str]:
+        """Always ask for the body as text, on create as much as on get_by_id and update.
 
-    def _detail_headers(self) -> dict[str, str]:
-        """Unlike create, a text-body preference is always included: the event being read
-        or patched may already carry a body regardless of what this call touches, and
-        without the preference Graph would answer with HTML the mapper cannot read.
+        Create used to skip this when no body was being sent, on the assumption that
+        Graph would then have "nothing to read back as HTML". That assumption was wrong:
+        confirmed live, an event created with no body at all still comes back with a
+        `body` property, and without this preference Graph defaults it to HTML — an
+        Exchange-generated empty wrapper, not the absence of a body — which the mapper
+        then refuses to read as text. Graph always returns a body, so the preference is
+        never conditional on whether one was sent.
         """
         return combined_preference(timezone_preference(self._timezone), text_body_preference())
