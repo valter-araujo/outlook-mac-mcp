@@ -359,15 +359,21 @@ is the one pair whose apply step cannot be undone. Each pair is always a two-ste
 handshake, and each has its own token namespace — a token from one pair is refused by
 every other pair's apply tool, not just reused within its own.
 
-1. `preview_event` takes the full details of a new event (subject, start, end with UTC
-   offsets, optional location, all-day flag, up to 50 attendee addresses), validates
-   them, and returns a one-line summary plus an opaque token. Nothing is written.
-   `create_event` takes only that token and performs the real change.
-2. `preview_event_update` takes an event id and any subset of the same fields, fetches
-   the current event, and returns a token plus a summary showing the diff for each
-   changed field as old value -> new value — never just the resulting state. A field
-   left out of the call is left exactly as it is. `update_event` takes only that token
-   and applies just the changed fields.
+1. `preview_event` takes the full details of a new event — subject; start and end with
+   UTC offsets; an all-day flag; an optional free-text location; an optional plain-text
+   body, up to 32,768 characters; up to 50 attendee addresses; an optional reminder lead
+   time in minutes; an optional sensitivity (`normal`, `personal`, `private` or
+   `confidential`); and an optional free/busy status to show as (`free`, `tentative`,
+   `busy`, `oof` or `workingElsewhere`) — validates them, and returns a one-line summary
+   plus an opaque token. Nothing is written. `create_event` takes only that token and
+   performs the real change.
+2. `preview_event_update` takes an event id and any subset of the same fields **except**
+   the all-day flag, which is never changeable after creation and always carries over
+   from the current event: subject, start, end, location, body, attendees, reminder lead
+   time, sensitivity and show-as. It fetches the current event, and returns a token plus
+   a summary showing the diff for each changed field as old value -> new value — never
+   just the resulting state. A field left out of the call is left exactly as it is.
+   `update_event` takes only that token and applies just the changed fields.
 
 Every apply tool's token works exactly once and only within the same server process;
 an unknown token, an already used token, or a token issued by a different pair's
