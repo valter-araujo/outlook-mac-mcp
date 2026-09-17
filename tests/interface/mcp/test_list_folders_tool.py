@@ -6,6 +6,7 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import CallToolResult
 
+from outlook_mac_mcp.domain.custom_folder_scan import CustomFolderScan
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.mail_folder import MailFolder
 from outlook_mac_mcp.infrastructure.graph.errors import NotAuthenticatedError
@@ -32,6 +33,9 @@ class FailingMailFolderRepository:
         self._error = error
 
     def list_all(self) -> tuple[MailFolder, ...]:
+        raise self._error
+
+    def list_custom(self, max_depth: int, max_folders: int) -> CustomFolderScan:
         raise self._error
 
 
