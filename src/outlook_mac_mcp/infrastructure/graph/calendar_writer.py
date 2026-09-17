@@ -20,7 +20,14 @@ from outlook_mac_mcp.infrastructure.graph.preferences import (
 )
 
 EVENTS_PATH = "/me/events"
-EVENT_DETAIL_FIELDS = (*EVENT_FIELDS, "body", "attendees")
+EVENT_DETAIL_FIELDS = (
+    *EVENT_FIELDS,
+    "body",
+    "attendees",
+    "reminderMinutesBeforeStart",
+    "sensitivity",
+    "showAs",
+)
 
 
 class GraphCalendarWriter:

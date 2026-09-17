@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 from outlook_mac_mcp.infrastructure.graph.errors import GraphResponseError
 from outlook_mac_mcp.infrastructure.graph.event_mapper import to_event
 
@@ -121,3 +123,40 @@ def test_reads_a_plain_text_body() -> None:
 def test_raises_when_the_body_is_html_instead_of_text() -> None:
     with pytest.raises(GraphResponseError, match="html"):
         to_event(graph_event(body={"contentType": "html", "content": "<p>Bring it</p>"}))
+
+
+def test_maps_a_missing_reminder_sensitivity_and_show_as_to_none() -> None:
+    """A listing never selects these fields either, so a listed event carries none."""
+    event = to_event(graph_event())
+
+    assert event.reminder_minutes_before_start is None
+    assert event.sensitivity is None
+    assert event.show_as is None
+
+
+def test_reads_a_reminder_of_zero_minutes() -> None:
+    event = to_event(graph_event(reminderMinutesBeforeStart=0))
+
+    assert event.reminder_minutes_before_start == 0
+
+
+def test_reads_sensitivity_and_show_as() -> None:
+    event = to_event(graph_event(sensitivity="private", showAs="tentative"))
+
+    assert event.sensitivity is Sensitivity.PRIVATE
+    assert event.show_as is ShowAs.TENTATIVE
+
+
+def test_raises_when_sensitivity_is_not_a_known_value() -> None:
+    with pytest.raises(GraphResponseError, match="sensitivity"):
+        to_event(graph_event(sensitivity="top-secret"))
+
+
+def test_raises_when_show_as_is_not_a_known_value() -> None:
+    with pytest.raises(GraphResponseError, match="showAs"):
+        to_event(graph_event(showAs="somewhere"))
+
+
+def test_raises_when_the_reminder_is_not_an_integer() -> None:
+    with pytest.raises(GraphResponseError, match="reminderMinutesBeforeStart"):
+        to_event(graph_event(reminderMinutesBeforeStart="30"))

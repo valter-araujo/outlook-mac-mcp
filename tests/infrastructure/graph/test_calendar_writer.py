@@ -13,6 +13,8 @@ from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.errors import EventNotFoundError
 from outlook_mac_mcp.domain.event_changes import EventChanges
 from outlook_mac_mcp.domain.new_event import NewEvent
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 from outlook_mac_mcp.infrastructure.graph.calendar_writer import GraphCalendarWriter
 from outlook_mac_mcp.infrastructure.graph.client import GRAPH_BASE_URL, GraphClient
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
@@ -173,10 +175,28 @@ def test_fetches_an_event_by_id_with_the_detail_fields_selected(
     event = writer.get_by_id("AAMkEXISTING")
 
     assert route.calls.last.request.url.params["$select"] == (
-        "id,subject,start,end,isAllDay,location,organizer,body,attendees"
+        "id,subject,start,end,isAllDay,location,organizer,body,attendees,"
+        "reminderMinutesBeforeStart,sensitivity,showAs"
     )
     assert event.body == "Bring the deck."
     assert event.attendees == (EmailAddress(address="ana@example.com", display_name="Ana"),)
+
+
+@respx.mock
+def test_fetches_reminder_sensitivity_and_show_as(writer: GraphCalendarWriter) -> None:
+    existing_with_extras = {
+        **EXISTING,
+        "reminderMinutesBeforeStart": 30,
+        "sensitivity": "private",
+        "showAs": "tentative",
+    }
+    respx.get(AN_EVENT_URL).mock(return_value=httpx.Response(200, json=existing_with_extras))
+
+    event = writer.get_by_id("AAMkEXISTING")
+
+    assert event.reminder_minutes_before_start == 30
+    assert event.sensitivity is Sensitivity.PRIVATE
+    assert event.show_as is ShowAs.TENTATIVE
 
 
 @respx.mock
@@ -215,6 +235,27 @@ def test_patches_only_the_supplied_fields(writer: GraphCalendarWriter) -> None:
 
     body = json.loads(route.calls.last.request.content)
     assert body == {"subject": "Replanning"}
+
+
+@respx.mock
+def test_patches_reminder_sensitivity_and_show_as(writer: GraphCalendarWriter) -> None:
+    respx.get(AN_EVENT_URL).mock(return_value=httpx.Response(200, json=EXISTING))
+    route = respx.patch(AN_EVENT_URL).mock(return_value=httpx.Response(200, json=EXISTING))
+    changes = EventChanges(
+        event_id="AAMkEXISTING",
+        reminder_minutes_before_start=30,
+        sensitivity=Sensitivity.CONFIDENTIAL,
+        show_as=ShowAs.OOF,
+    )
+
+    writer.update(changes)
+
+    body = json.loads(route.calls.last.request.content)
+    assert body == {
+        "reminderMinutesBeforeStart": 30,
+        "sensitivity": "confidential",
+        "showAs": "oof",
+    }
 
 
 @respx.mock

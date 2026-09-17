@@ -2,8 +2,14 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from outlook_mac_mcp.domain.email_address import EmailAddress
+from outlook_mac_mcp.domain.event_changes import EventChanges
 from outlook_mac_mcp.domain.new_event import NewEvent
-from outlook_mac_mcp.infrastructure.graph.event_payload import to_event_payload
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
+from outlook_mac_mcp.infrastructure.graph.event_payload import (
+    to_event_patch_payload,
+    to_event_payload,
+)
 
 SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 NINE = datetime(2026, 9, 15, 9, tzinfo=SAO_PAULO)
@@ -105,3 +111,72 @@ def test_sends_attendees_as_required_with_a_name_only_when_known() -> None:
         {"emailAddress": {"address": "ana@example.com", "name": "Ana Lima"}, "type": "required"},
         {"emailAddress": {"address": "bo@example.com"}, "type": "required"},
     ]
+
+
+def test_omits_reminder_sensitivity_and_show_as_when_none_are_given() -> None:
+    payload = to_event_payload(
+        NewEvent(subject="Planning", start=NINE, end=NINE + timedelta(hours=1)), SAO_PAULO
+    )
+
+    assert "reminderMinutesBeforeStart" not in payload
+    assert "sensitivity" not in payload
+    assert "showAs" not in payload
+
+
+def test_sends_a_reminder_of_zero_minutes() -> None:
+    payload = to_event_payload(
+        NewEvent(
+            subject="Planning",
+            start=NINE,
+            end=NINE + timedelta(hours=1),
+            reminder_minutes_before_start=0,
+        ),
+        SAO_PAULO,
+    )
+
+    assert payload["reminderMinutesBeforeStart"] == 0
+
+
+def test_sends_sensitivity_and_show_as_by_their_graph_value() -> None:
+    payload = to_event_payload(
+        NewEvent(
+            subject="Planning",
+            start=NINE,
+            end=NINE + timedelta(hours=1),
+            sensitivity=Sensitivity.PRIVATE,
+            show_as=ShowAs.TENTATIVE,
+        ),
+        SAO_PAULO,
+    )
+
+    assert payload["sensitivity"] == "private"
+    assert payload["showAs"] == "tentative"
+
+
+def test_patch_payload_omits_reminder_sensitivity_and_show_as_when_not_supplied() -> None:
+    payload = to_event_patch_payload(
+        EventChanges(event_id="AAMkEXISTING", subject="Replanning"), False, SAO_PAULO
+    )
+
+    assert "reminderMinutesBeforeStart" not in payload
+    assert "sensitivity" not in payload
+    assert "showAs" not in payload
+
+
+def test_patch_payload_includes_only_the_supplied_reminder_sensitivity_and_show_as() -> None:
+    payload = to_event_patch_payload(
+        EventChanges(
+            event_id="AAMkEXISTING",
+            reminder_minutes_before_start=30,
+            sensitivity=Sensitivity.CONFIDENTIAL,
+            show_as=ShowAs.OOF,
+        ),
+        False,
+        SAO_PAULO,
+    )
+
+    assert payload == {
+        "reminderMinutesBeforeStart": 30,
+        "sensitivity": "confidential",
+        "showAs": "oof",
+    }

@@ -28,6 +28,12 @@ def to_event_payload(new_event: NewEvent, timezone: ZoneInfo) -> dict[str, Any]:
         payload["location"] = {"displayName": new_event.location}
     if new_event.body:
         payload["body"] = {"contentType": "text", "content": new_event.body}
+    if new_event.reminder_minutes_before_start is not None:
+        payload["reminderMinutesBeforeStart"] = new_event.reminder_minutes_before_start
+    if new_event.sensitivity is not None:
+        payload["sensitivity"] = new_event.sensitivity.value
+    if new_event.show_as is not None:
+        payload["showAs"] = new_event.show_as.value
     return payload
 
 
@@ -50,6 +56,12 @@ def to_event_patch_payload(
         payload["body"] = {"contentType": "text", "content": changes.body}
     if changes.attendees is not None:
         payload["attendees"] = [_attendee(attendee) for attendee in changes.attendees]
+    if changes.reminder_minutes_before_start is not None:
+        payload["reminderMinutesBeforeStart"] = changes.reminder_minutes_before_start
+    if changes.sensitivity is not None:
+        payload["sensitivity"] = changes.sensitivity.value
+    if changes.show_as is not None:
+        payload["showAs"] = changes.show_as.value
     return payload
 
 

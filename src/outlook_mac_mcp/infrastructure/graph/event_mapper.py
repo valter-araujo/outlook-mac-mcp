@@ -5,9 +5,13 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.event import Event
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 from outlook_mac_mcp.infrastructure.graph.email_address_mapper import to_email_address
 from outlook_mac_mcp.infrastructure.graph.errors import GraphResponseError
 from outlook_mac_mcp.infrastructure.graph.json_fields import (
+    optional_enum,
+    optional_int,
     optional_text,
     optional_text_body,
     required_flag,
@@ -38,6 +42,9 @@ def to_event(event: Mapping[str, Any]) -> Event:
         organizer=to_email_address(event.get("organizer")),
         body=optional_text_body(event),
         attendees=_read_attendees(event),
+        reminder_minutes_before_start=optional_int(event, "reminderMinutesBeforeStart"),
+        sensitivity=optional_enum(event, "sensitivity", Sensitivity),
+        show_as=optional_enum(event, "showAs", ShowAs),
     )
 
 

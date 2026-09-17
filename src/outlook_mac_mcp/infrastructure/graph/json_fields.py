@@ -6,6 +6,7 @@ turn it into something else, so every value the domain sees was checked exactly 
 
 from collections.abc import Mapping
 from datetime import datetime
+from enum import StrEnum
 from typing import Any
 
 from outlook_mac_mcp.infrastructure.graph.errors import GraphResponseError
@@ -40,6 +41,35 @@ def required_datetime(resource: Mapping[str, Any], field: str) -> datetime:
     if value.tzinfo is None:
         raise GraphResponseError(f"{field} carried no time zone")
     return value
+
+
+def optional_int(resource: Mapping[str, Any], field: str) -> int | None:
+    """A field a listing never selects, so its absence is normal and reads as None
+    rather than an error; see optional_text_body.
+    """
+    value = resource.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise GraphResponseError(f"{field} was not an integer")
+    return value
+
+
+def optional_enum[E: StrEnum](
+    resource: Mapping[str, Any], field: str, enum_cls: type[E]
+) -> E | None:
+    """Same absence rule as optional_int, for a Graph enum-as-string field."""
+    value = resource.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise GraphResponseError(f"{field} was not a string")
+    try:
+        return enum_cls(value)
+    except ValueError as error:
+        raise GraphResponseError(
+            f"{field} was {value!r}, not a known {enum_cls.__name__}"
+        ) from error
 
 
 TEXT_CONTENT_TYPE = "text"
