@@ -62,6 +62,8 @@ on triggers a new sign-in and consent prompt.
 
 ## Validated environments
 
+Ordered chronologically by validation date (oldest first).
+
 | Version | OS | Python | MCP client | Account type | Outlook app installed | Status |
 |---|---|---|---|---|---|---|
 | 0.1.0 | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | Outlook for Mac 16.112.4 (26090911), New Outlook, M365 Subscription — not used by the server | **validated** 2026-09-14 |
@@ -73,19 +75,21 @@ include exact versions.
 
 ### Validated tools
 
+Sorted alphabetically by tool name.
+
 | Tool | Validated | What was checked |
 |---|---|---|
-| `list_unread_emails` | 2026-09-14 | Reads a Hotmail inbox through Graph. |
-| `search_emails` | 2026-09-14, 2026-09-15 | A term matching several emails returned an exact total; `scope=subject` and `scope=sender` each returned a narrower, still-exact subset; a term trying to break out of the phrase returned empty with no 400. |
-| `get_email` | 2026-09-14 | Text body returned with the `Prefer` header honoured; the malformed id `nope` came back as `ErrorInvalidIdMalformed` and was mapped to `InvalidRequestError`. |
-| `list_todays_events` | 2026-09-15 | Returned zero events, exact, on a free day. |
-| `list_upcoming_events` | 2026-09-15 | Returned the matching events, earliest first; confirmed both an all-day event and a timed event mapped correctly in the resolved time zone. |
-| `list_emails` | 2026-09-15 | `sort=oldest`, `limit=1` returned the folder's earliest email with an exact total; an exact-sender filter with `sort=newest` returned exactly one match, and Graph accepted the sender filter combined with `$orderby` without an `InefficientFilter` error. |
 | `count_emails` | 2026-09-15 | A received-time range covering one month returned an exact count. |
-| `top_senders` | 2026-09-15 | A full inbox scan hit the configured ceiling with `coverage_is_complete=false`; the client reported the partial coverage explicitly, as the description asks. |
-| `preview_event` | 2026-09-15, 2026-09-16 | Summary and token for a timed and an all-day event; a body well under the truncation threshold showed in full, verbatim, in the preview. |
 | `create_event` | 2026-09-15, 2026-09-16 | Created a timed event and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. A body from the preview was written to the created event correctly. |
+| `get_email` | 2026-09-14 | Text body returned with the `Prefer` header honoured; the malformed id `nope` came back as `ErrorInvalidIdMalformed` and was mapped to `InvalidRequestError`. |
+| `list_emails` | 2026-09-15 | `sort=oldest`, `limit=1` returned the folder's earliest email with an exact total; an exact-sender filter with `sort=newest` returned exactly one match, and Graph accepted the sender filter combined with `$orderby` without an `InefficientFilter` error. |
 | `list_largest_emails` | 2026-09-16 | Returned ranked results with real sizes from the extended property, `skipped` near zero. |
+| `list_todays_events` | 2026-09-15 | Returned zero events, exact, on a free day. |
+| `list_unread_emails` | 2026-09-14 | Reads a Hotmail inbox through Graph. |
+| `list_upcoming_events` | 2026-09-15 | Returned the matching events, earliest first; confirmed both an all-day event and a timed event mapped correctly in the resolved time zone. |
+| `preview_event` | 2026-09-15, 2026-09-16 | Summary and token for a timed and an all-day event; a body well under the truncation threshold showed in full, verbatim, in the preview. |
+| `search_emails` | 2026-09-14, 2026-09-15 | A term matching several emails returned an exact total; `scope=subject` and `scope=sender` each returned a narrower, still-exact subset; a term trying to break out of the phrase returned empty with no 400. |
+| `top_senders` | 2026-09-15 | A full inbox scan hit the configured ceiling with `coverage_is_complete=false`; the client reported the partial coverage explicitly, as the description asks. |
 
 Every tool shipped so far has been validated against a real mailbox on the environment
 above. Search quoting is additionally covered by a live positive-control check, see
@@ -102,28 +106,29 @@ above. Search quoting is additionally covered by a live positive-control check, 
 
 ## Tools
 
-Read tools are always registered. The six write tools below are registered only when
-`OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
-[Optional: calendar write](#optional-calendar-write)).
+Read tools are always registered. The six write tools (marked `v2, flagged`) are
+registered only when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
+[Optional: calendar write](#optional-calendar-write)). Sorted alphabetically by tool name.
 
 | Tool | What it does |
 |---|---|
-| `list_unread_emails` | List unread emails in a folder, newest first. |
-| `search_emails` | Search a folder for a term, ranked by relevance, not by date. |
+| `count_emails` | Count emails matching the same filters as `list_emails`, exactly, without listing them. |
+| `create_event` (v2, flagged) | Create the event previewed under a token from `preview_event`. |
+| `delete_event` (v2, flagged) | Delete the event previewed under a token from `preview_event_deletion`. Irreversible. |
 | `get_email` | Fetch one email by id, body included. |
 | `list_emails` | List emails in a folder with any combination of filters (read state, sender, date range, attachments), sorted newest or oldest, with an exact total. |
-| `count_emails` | Count emails matching the same filters as `list_emails`, exactly, without listing them. |
-| `top_senders` | Rank a folder's senders by how many emails each sent, scanning up to 10,000 matching emails per call. |
 | `list_folders` | List the mailbox's well-known folders with their unread and total item counts. |
+| `list_largest_emails` | List a folder's largest emails by byte size, largest first, scanning up to 10,000 matching emails per call; emails with no determinable size are counted separately in `skipped`. |
 | `list_todays_events` | List today's calendar events, earliest first. |
+| `list_unread_emails` | List unread emails in a folder, newest first. |
 | `list_upcoming_events` | List calendar events from now through 1–30 days ahead. |
-| `search_contacts` | Search contacts by a display-name prefix or an exact email address. |
 | `preview_event` (v2, flagged) | Validate a new event and return a token and a summary, without creating it. |
-| `create_event` (v2, flagged) | Create the event previewed under a token from `preview_event`. |
-| `preview_event_update` (v2, flagged) | Fetch an existing event, validate the requested changes, and return a token and a diff summary (old value -> new value, changed fields only), without applying anything. |
-| `update_event` (v2, flagged) | Apply the change previewed under a token from `preview_event_update`. Only the fields actually passed to the preview are changed. |
 | `preview_event_deletion` (v2, flagged) | Fetch an existing event and return a token and a summary showing every field, unabbreviated, without deleting anything. |
-| `delete_event` (v2, flagged) | Delete the event previewed under a token from `preview_event_deletion`. Irreversible. |
+| `preview_event_update` (v2, flagged) | Fetch an existing event, validate the requested changes, and return a token and a diff summary (old value -> new value, changed fields only), without applying anything. |
+| `search_contacts` | Search contacts by a display-name prefix or an exact email address. |
+| `search_emails` | Search a folder for a term, ranked by relevance, not by date. |
+| `top_senders` | Rank a folder's senders by how many emails each sent, scanning up to 10,000 matching emails per call. |
+| `update_event` (v2, flagged) | Apply the change previewed under a token from `preview_event_update`. Only the fields actually passed to the preview are changed. |
 
 ## Security model
 
