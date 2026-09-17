@@ -26,3 +26,10 @@ class CalendarWriter(Protocol):
         Raises EventNotFoundError when the calendar holds no such event.
         """
         ...
+
+    def delete(self, event_id: str) -> None:
+        """Remove the event with `event_id` from the default calendar. Irreversible.
+
+        Raises EventNotFoundError when the calendar holds no such event.
+        """
+        ...

@@ -69,6 +69,14 @@ class GraphCalendarWriter:
             raise
         return to_event(payload)
 
+    def delete(self, event_id: str) -> None:
+        try:
+            self._client.delete(f"{EVENTS_PATH}/{quote(event_id, safe='')}")
+        except GraphRequestError as error:
+            if error.status_code == HTTPStatus.NOT_FOUND:
+                raise EventNotFoundError(f"no event with id {event_id}") from error
+            raise
+
     def _resolve_is_all_day(self, changes: EventChanges) -> bool:
         """is_all_day is never itself a changeable field, so it is only worth a fetch when
         start or end is: those are the only payload fields it affects.

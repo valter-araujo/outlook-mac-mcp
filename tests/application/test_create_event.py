@@ -35,6 +35,9 @@ class FailingCalendarWriter:
     def update(self, changes: EventChanges) -> Event:
         raise NotImplementedError
 
+    def delete(self, event_id: str) -> None:
+        raise NotImplementedError
+
 
 def new_store() -> DraftStore[EventDraft]:
     return DraftStore()

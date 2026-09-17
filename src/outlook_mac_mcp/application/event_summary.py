@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.new_event import NewEvent
 
 DAY_FORMAT = "%a %d %b %Y"
@@ -44,6 +45,23 @@ def describe_moment(instant: datetime) -> str:
     """
     offset = f"UTC{instant.isoformat()[-6:]}"
     return f"{instant.strftime(DAY_FORMAT)} {instant.strftime(CLOCK_FORMAT)} ({offset})"
+
+
+def describe_place(location: str) -> str:
+    """A location field for an update diff or a deletion snapshot, where an empty value
+    must still be shown explicitly rather than producing a blank or missing line.
+    """
+    return f'"{location}"' if location else "(none)"
+
+
+def describe_body(body: str) -> str:
+    """A body field for an update diff or a deletion snapshot; see describe_place."""
+    return summarize_body(body) if body else "(none)"
+
+
+def describe_attendees(attendees: tuple[EmailAddress, ...]) -> str:
+    """An attendee list for an update diff or a deletion snapshot; see describe_place."""
+    return ", ".join(attendee.address for attendee in attendees) if attendees else "(none)"
 
 
 def _when(event: NewEvent) -> str:

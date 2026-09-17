@@ -1,5 +1,9 @@
-from outlook_mac_mcp.application.event_summary import describe_moment, summarize_body
-from outlook_mac_mcp.domain.email_address import EmailAddress
+from outlook_mac_mcp.application.event_summary import (
+    describe_attendees,
+    describe_body,
+    describe_moment,
+    describe_place,
+)
 from outlook_mac_mcp.domain.event import Event
 from outlook_mac_mcp.domain.event_changes import EventChanges
 from outlook_mac_mcp.domain.new_event import NewEvent
@@ -42,24 +46,17 @@ def describe_changes(current: Event, changes: EventChanges) -> str:
     if changes.end is not None:
         diffs.append(f"end: {describe_moment(current.end)} -> {describe_moment(changes.end)}")
     if changes.location is not None:
-        diffs.append(f"location: {_place(current.location)} -> {_place(changes.location)}")
+        diffs.append(
+            f"location: {describe_place(current.location)} -> {describe_place(changes.location)}"
+        )
     if changes.body is not None:
-        diffs.append(f"body: {_body(current.body)} -> {_body(changes.body)}")
+        diffs.append(f"body: {describe_body(current.body)} -> {describe_body(changes.body)}")
     if changes.attendees is not None:
-        diffs.append(f"attendees: {_people(current.attendees)} -> {_people(changes.attendees)}")
+        diffs.append(
+            f"attendees: {describe_attendees(current.attendees)} -> "
+            f"{describe_attendees(changes.attendees)}"
+        )
     identity = (
         f'"{current.subject}" ({describe_moment(current.start)} to {describe_moment(current.end)})'
     )
     return f"{identity}: " + "; ".join(diffs)
-
-
-def _place(location: str) -> str:
-    return f'"{location}"' if location else "(none)"
-
-
-def _body(body: str) -> str:
-    return summarize_body(body) if body else "(none)"
-
-
-def _people(attendees: tuple[EmailAddress, ...]) -> str:
-    return ", ".join(attendee.address for attendee in attendees) if attendees else "(none)"

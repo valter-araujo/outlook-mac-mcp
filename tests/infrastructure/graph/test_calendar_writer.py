@@ -266,3 +266,32 @@ def test_raises_event_not_found_when_patching_an_unknown_id(writer: GraphCalenda
 
     with pytest.raises(EventNotFoundError):
         writer.update(changes)
+
+
+@respx.mock
+def test_deletes_the_event_at_its_url(writer: GraphCalendarWriter) -> None:
+    route = respx.delete(AN_EVENT_URL).mock(return_value=httpx.Response(204))
+
+    writer.delete("AAMkEXISTING")
+
+    assert route.called
+
+
+@respx.mock
+def test_raises_event_not_found_when_deleting_an_unknown_id(writer: GraphCalendarWriter) -> None:
+    respx.delete(AN_EVENT_URL).mock(
+        return_value=httpx.Response(404, json={"error": {"code": "ErrorItemNotFound"}})
+    )
+
+    with pytest.raises(EventNotFoundError):
+        writer.delete("AAMkEXISTING")
+
+
+@respx.mock
+def test_raises_when_graph_rejects_the_delete(writer: GraphCalendarWriter) -> None:
+    respx.delete(AN_EVENT_URL).mock(
+        return_value=httpx.Response(400, json={"error": {"code": "ErrorInvalidRequest"}})
+    )
+
+    with pytest.raises(GraphRequestError, match="ErrorInvalidRequest"):
+        writer.delete("AAMkEXISTING")

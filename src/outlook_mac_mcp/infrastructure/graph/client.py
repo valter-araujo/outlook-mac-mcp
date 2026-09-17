@@ -81,6 +81,20 @@ class GraphClient:
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
         return _read_payload(self._http_client.send(request))
 
+    def delete(self, path: str) -> None:
+        """Delete the resource at `path`. Graph answers with no body, so nothing is
+        decoded; the host and token rules are the same as for `get`.
+        """
+        request = self._http_client.build_request("DELETE", _relative_path(path))
+        _reject_foreign_host(request.url)
+        request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
+        response = self._http_client.send(request)
+        if not response.is_success:
+            error_code = _error_code(response)
+            raise GraphRequestError(
+                _describe_failure(response, error_code), response.status_code, error_code
+            )
+
     def follow(self, next_link: str) -> Mapping[str, Any]:
         """Fetch an @odata.nextLink, which Graph returns as an absolute URL.
 

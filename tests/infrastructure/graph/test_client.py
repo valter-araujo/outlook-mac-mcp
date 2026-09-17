@@ -288,3 +288,79 @@ def test_raises_with_the_error_code_when_a_post_is_rejected(client: GraphClient)
 
     with pytest.raises(GraphRequestError, match="ErrorInvalidPropertyRequest"):
         client.post(EVENTS_PATH, {})
+
+
+AN_EVENT_URL = f"{EVENTS_URL}/AAMkEXISTING"
+AN_EVENT_PATH = f"{EVENTS_PATH}/AAMkEXISTING"
+
+
+@respx.mock
+def test_patches_the_body_as_json(client: GraphClient) -> None:
+    route = respx.patch(AN_EVENT_URL).mock(return_value=httpx.Response(200, json={"id": "1"}))
+
+    payload = client.patch(AN_EVENT_PATH, {"subject": "Replanning"})
+
+    request = route.calls.last.request
+    assert request.headers["Content-Type"] == "application/json"
+    assert json.loads(request.content) == {"subject": "Replanning"}
+    assert payload == {"id": "1"}
+
+
+@respx.mock
+def test_sends_the_bearer_token_and_extra_headers_when_patching(client: GraphClient) -> None:
+    route = respx.patch(AN_EVENT_URL).mock(return_value=httpx.Response(200, json={}))
+
+    client.patch(AN_EVENT_PATH, {}, {"Prefer": 'outlook.timezone="UTC"'})
+
+    request = route.calls.last.request
+    assert request.headers["Authorization"] == "Bearer a-token"
+    assert request.headers["Prefer"] == 'outlook.timezone="UTC"'
+
+
+@respx.mock
+def test_refuses_to_patch_an_absolute_url(client: GraphClient) -> None:
+    route = respx.patch(ANOTHER_HOST_URL).mock(return_value=httpx.Response(200, json={}))
+
+    with pytest.raises(UnsupportedHostError):
+        client.patch(ANOTHER_HOST_URL, {})
+
+    assert route.call_count == 0
+
+
+@respx.mock
+def test_raises_with_the_error_code_when_a_patch_is_rejected(client: GraphClient) -> None:
+    respx.patch(AN_EVENT_URL).mock(
+        return_value=httpx.Response(400, json={"error": {"code": "ErrorInvalidPropertyRequest"}})
+    )
+
+    with pytest.raises(GraphRequestError, match="ErrorInvalidPropertyRequest"):
+        client.patch(AN_EVENT_PATH, {})
+
+
+@respx.mock
+def test_deletes_and_sends_the_bearer_token(client: GraphClient) -> None:
+    route = respx.delete(AN_EVENT_URL).mock(return_value=httpx.Response(204))
+
+    client.delete(AN_EVENT_PATH)
+
+    assert route.calls.last.request.headers["Authorization"] == "Bearer a-token"
+
+
+@respx.mock
+def test_refuses_to_delete_an_absolute_url(client: GraphClient) -> None:
+    route = respx.delete(ANOTHER_HOST_URL).mock(return_value=httpx.Response(204))
+
+    with pytest.raises(UnsupportedHostError):
+        client.delete(ANOTHER_HOST_URL)
+
+    assert route.call_count == 0
+
+
+@respx.mock
+def test_raises_with_the_error_code_when_a_delete_is_rejected(client: GraphClient) -> None:
+    respx.delete(AN_EVENT_URL).mock(
+        return_value=httpx.Response(404, json={"error": {"code": "ErrorItemNotFound"}})
+    )
+
+    with pytest.raises(GraphRequestError, match="ErrorItemNotFound"):
+        client.delete(AN_EVENT_PATH)
