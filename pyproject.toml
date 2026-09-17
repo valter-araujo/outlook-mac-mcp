@@ -1,6 +1,6 @@
 [project]
 name = "outlook-mac-mcp"
-version = "0.5.0"
+version = "0.5.1"
 description = "MCP server for Microsoft Outlook personal accounts via Microsoft Graph API"
 readme = "README.md"
 license = "MIT"
