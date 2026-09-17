@@ -86,6 +86,7 @@ Sorted alphabetically by tool name.
 | `create_event` | 2026-09-15, 2026-09-16, 2026-09-17 | Created a timed event and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. A body from the preview was written to the created event correctly. An event with no body at all also succeeded, confirming the fix for Graph defaulting an unsent body to HTML. |
 | `get_email` | 2026-09-14 | Text body returned with the `Prefer` header honoured; the malformed id `nope` came back as `ErrorInvalidIdMalformed` and was mapped to `InvalidRequestError`. |
 | `list_emails` | 2026-09-15 | `sort=oldest`, `limit=1` returned the folder's earliest email with an exact total; an exact-sender filter with `sort=newest` returned exactly one match, and Graph accepted the sender filter combined with `$orderby` without an `InefficientFilter` error. |
+| `list_folders` | 2026-09-17 | Discovered 100+ custom folders correctly, including several levels of nesting, each with accurate per-folder unread/total counts. Confirmed the documented limitation live: a Microsoft-managed folder with no well-known flag (Deleted Items) appeared in `custom` as expected, alongside genuine user-created folders. |
 | `list_largest_emails` | 2026-09-16 | Returned ranked results with real sizes from the extended property, `skipped` near zero. |
 | `list_todays_events` | 2026-09-15 | Returned zero events, exact, on a free day. |
 | `list_unread_emails` | 2026-09-14 | Reads a Hotmail inbox through Graph. |
