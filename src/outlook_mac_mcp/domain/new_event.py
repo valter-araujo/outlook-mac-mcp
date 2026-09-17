@@ -3,11 +3,14 @@ from datetime import datetime, time
 
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.errors import InvalidRequestError
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 
 MIN_SUBJECT_LENGTH = 1
 MAX_SUBJECT_LENGTH = 255
 MAX_ATTENDEES = 50
 MAX_BODY_LENGTH = 32_768
+MIN_REMINDER_MINUTES_BEFORE_START = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +33,9 @@ class NewEvent:
     location: str = ""
     body: str = ""
     attendees: tuple[EmailAddress, ...] = ()
+    reminder_minutes_before_start: int | None = None
+    sensitivity: Sensitivity | None = None
+    show_as: ShowAs | None = None
 
     def __post_init__(self) -> None:
         if not MIN_SUBJECT_LENGTH <= len(self.subject) <= MAX_SUBJECT_LENGTH:
@@ -44,6 +50,14 @@ class NewEvent:
             raise InvalidRequestError(f"at most {MAX_ATTENDEES} attendees are allowed")
         if len(self.body) > MAX_BODY_LENGTH:
             raise InvalidRequestError(f"body must be at most {MAX_BODY_LENGTH} characters")
+        if (
+            self.reminder_minutes_before_start is not None
+            and self.reminder_minutes_before_start < MIN_REMINDER_MINUTES_BEFORE_START
+        ):
+            raise InvalidRequestError(
+                f"reminder_minutes_before_start must be at least "
+                f"{MIN_REMINDER_MINUTES_BEFORE_START}"
+            )
         if self.is_all_day:
             _ensure_midnight_boundaries(self.start, self.end)
 

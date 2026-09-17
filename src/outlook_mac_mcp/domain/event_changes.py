@@ -3,6 +3,8 @@ from datetime import datetime
 
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.errors import InvalidRequestError
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 
 # Graph event ids are opaque and their length varies, so the bound exists to keep
 # unbounded input out of a URL path, not to describe a format; mirrors MAX_EMAIL_ID_LENGTH.
@@ -30,6 +32,9 @@ class EventChanges:
     location: str | None = None
     body: str | None = None
     attendees: tuple[EmailAddress, ...] | None = None
+    reminder_minutes_before_start: int | None = None
+    sensitivity: Sensitivity | None = None
+    show_as: ShowAs | None = None
 
     def __post_init__(self) -> None:
         if not self.event_id:
@@ -55,5 +60,8 @@ class EventChanges:
                 self.location,
                 self.body,
                 self.attendees,
+                self.reminder_minutes_before_start,
+                self.sensitivity,
+                self.show_as,
             )
         )

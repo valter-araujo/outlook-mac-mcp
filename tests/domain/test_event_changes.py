@@ -5,6 +5,8 @@ import pytest
 
 from outlook_mac_mcp.domain.errors import InvalidRequestError
 from outlook_mac_mcp.domain.event_changes import MAX_EVENT_ID_LENGTH, EventChanges
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 
 SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 NINE = datetime(2026, 9, 15, 9, tzinfo=SAO_PAULO)
@@ -69,3 +71,28 @@ def test_accepts_start_before_end_when_both_are_supplied() -> None:
 def test_rejects_no_fields_supplied_at_all() -> None:
     with pytest.raises(InvalidRequestError):
         EventChanges(event_id="AAMkNEW")
+
+
+def test_a_reminder_alone_counts_as_a_change() -> None:
+    changes = EventChanges(event_id="AAMkNEW", reminder_minutes_before_start=10)
+
+    assert changes.has_any_change() is True
+
+
+def test_a_reminder_of_zero_still_counts_as_a_change() -> None:
+    """0 is a real value (no lead time), not the absence of one; only None means unset."""
+    changes = EventChanges(event_id="AAMkNEW", reminder_minutes_before_start=0)
+
+    assert changes.has_any_change() is True
+
+
+def test_a_sensitivity_alone_counts_as_a_change() -> None:
+    changes = EventChanges(event_id="AAMkNEW", sensitivity=Sensitivity.PRIVATE)
+
+    assert changes.has_any_change() is True
+
+
+def test_a_show_as_alone_counts_as_a_change() -> None:
+    changes = EventChanges(event_id="AAMkNEW", show_as=ShowAs.FREE)
+
+    assert changes.has_any_change() is True

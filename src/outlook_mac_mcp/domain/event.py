@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from outlook_mac_mcp.domain.email_address import EmailAddress
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,6 +17,10 @@ class Event:
     `body` and `attendees` default to empty because a listing never selects either, the
     same reason `Email` carries no body; both are only ever populated by a read that
     asks for them specifically, such as fetching one event by id.
+
+    `reminder_minutes_before_start`, `sensitivity` and `show_as` default to None for the
+    same reason: a listing never selects them, so None means "not read here", not "not
+    set on the calendar".
     """
 
     id: str
@@ -26,3 +32,6 @@ class Event:
     organizer: EmailAddress
     body: str = ""
     attendees: tuple[EmailAddress, ...] = ()
+    reminder_minutes_before_start: int | None = None
+    sensitivity: Sensitivity | None = None
+    show_as: ShowAs | None = None

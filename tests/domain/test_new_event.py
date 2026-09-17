@@ -12,6 +12,8 @@ from outlook_mac_mcp.domain.new_event import (
     MIN_SUBJECT_LENGTH,
     NewEvent,
 )
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 
 SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 NINE = datetime(2026, 9, 15, 9, tzinfo=SAO_PAULO)
@@ -91,3 +93,35 @@ def test_accepts_a_body_at_the_maximum_length() -> None:
 def test_rejects_a_body_beyond_the_maximum_length() -> None:
     with pytest.raises(InvalidRequestError):
         NewEvent(subject="Planning", start=NINE, end=TEN, body="a" * (MAX_BODY_LENGTH + 1))
+
+
+def test_defaults_reminder_sensitivity_and_show_as_to_none() -> None:
+    event = NewEvent(subject="Planning", start=NINE, end=TEN)
+
+    assert event.reminder_minutes_before_start is None
+    assert event.sensitivity is None
+    assert event.show_as is None
+
+
+def test_accepts_a_reminder_of_zero_minutes() -> None:
+    event = NewEvent(subject="Planning", start=NINE, end=TEN, reminder_minutes_before_start=0)
+
+    assert event.reminder_minutes_before_start == 0
+
+
+def test_rejects_a_negative_reminder() -> None:
+    with pytest.raises(InvalidRequestError):
+        NewEvent(subject="Planning", start=NINE, end=TEN, reminder_minutes_before_start=-1)
+
+
+def test_accepts_an_explicit_sensitivity_and_show_as() -> None:
+    event = NewEvent(
+        subject="Planning",
+        start=NINE,
+        end=TEN,
+        sensitivity=Sensitivity.PRIVATE,
+        show_as=ShowAs.TENTATIVE,
+    )
+
+    assert event.sensitivity is Sensitivity.PRIVATE
+    assert event.show_as is ShowAs.TENTATIVE
