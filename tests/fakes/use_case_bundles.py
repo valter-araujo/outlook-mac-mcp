@@ -25,6 +25,7 @@ from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.preview_event_deletion import PreviewEventDeletion
 from outlook_mac_mcp.application.preview_event_update import PreviewEventUpdate
+from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.application.search_contacts import SearchContacts
 from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.application.top_senders import TopSenders
@@ -40,9 +41,18 @@ from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
 FROZEN_NOW = datetime(2026, 9, 15, 15, 42, tzinfo=ZoneInfo("America/Sao_Paulo"))
 
 
-def mail_only_use_cases(repository: MailRepository) -> UseCases:
-    """A bundle for tests of the mail tools; the calendar side is empty and frozen."""
-    return _bundle(repository, InMemoryCalendarRepository(), FixedClock(FROZEN_NOW))
+def mail_only_use_cases(
+    repository: MailRepository, folder_repository: MailFolderRepository | None = None
+) -> UseCases:
+    """A bundle for tests of the mail tools; the calendar side is empty and frozen.
+
+    `folder_repository` backs resolve_folders -- pass one pre-populated with custom
+    folders (InMemoryMailFolderRepository.set_custom) to test a custom folder path
+    resolving through a mail tool; omitted, custom paths never match anything.
+    """
+    return _bundle(
+        repository, InMemoryCalendarRepository(), FixedClock(FROZEN_NOW), folder_repository
+    )
 
 
 def calendar_only_use_cases(repository: CalendarRepository, clock: Clock) -> UseCases:
@@ -78,6 +88,7 @@ def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
         list_largest_emails=bundle.list_largest_emails,
         list_folders=bundle.list_folders,
         list_custom_folders=bundle.list_custom_folders,
+        resolve_folders=bundle.resolve_folders,
         search_contacts=bundle.search_contacts,
         calendar_write=write,
     )
@@ -110,6 +121,7 @@ def calendar_write_use_cases_without_deletion(writer: CalendarWriter) -> UseCase
         list_largest_emails=bundle.list_largest_emails,
         list_folders=bundle.list_folders,
         list_custom_folders=bundle.list_custom_folders,
+        resolve_folders=bundle.resolve_folders,
         search_contacts=bundle.search_contacts,
         calendar_write=write,
     )
@@ -130,6 +142,7 @@ def folders_use_cases(repository: MailFolderRepository) -> UseCases:
         list_largest_emails=bundle.list_largest_emails,
         list_folders=ListFolders(repository),
         list_custom_folders=ListCustomFolders(repository),
+        resolve_folders=ResolveFolders(repository),
         search_contacts=SearchContacts(InMemoryContactRepository()),
     )
 
@@ -149,12 +162,19 @@ def contacts_use_cases(repository: ContactRepository) -> UseCases:
         list_largest_emails=bundle.list_largest_emails,
         list_folders=bundle.list_folders,
         list_custom_folders=bundle.list_custom_folders,
+        resolve_folders=bundle.resolve_folders,
         search_contacts=SearchContacts(repository),
     )
 
 
-def _bundle(mail: MailRepository, calendar: CalendarRepository, clock: Clock) -> UseCases:
-    folder_repository = InMemoryMailFolderRepository()
+def _bundle(
+    mail: MailRepository,
+    calendar: CalendarRepository,
+    clock: Clock,
+    folder_repository: MailFolderRepository | None = None,
+) -> UseCases:
+    if folder_repository is None:
+        folder_repository = InMemoryMailFolderRepository()
     return UseCases(
         list_unread_emails=ListUnreadEmails(mail),
         search_emails=SearchEmails(mail),
@@ -167,5 +187,6 @@ def _bundle(mail: MailRepository, calendar: CalendarRepository, clock: Clock) ->
         list_largest_emails=ListLargestEmails(mail),
         list_folders=ListFolders(folder_repository),
         list_custom_folders=ListCustomFolders(folder_repository),
+        resolve_folders=ResolveFolders(folder_repository),
         search_contacts=SearchContacts(InMemoryContactRepository()),
     )

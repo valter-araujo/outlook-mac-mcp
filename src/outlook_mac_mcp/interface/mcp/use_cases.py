@@ -9,6 +9,7 @@ from outlook_mac_mcp.application.list_largest_emails import ListLargestEmails
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
+from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.application.search_contacts import SearchContacts
 from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.application.top_senders import TopSenders
@@ -32,6 +33,7 @@ class UseCases:
     count_emails: CountEmails
     list_folders: ListFolders
     list_custom_folders: ListCustomFolders
+    resolve_folders: ResolveFolders
     search_contacts: SearchContacts
     top_senders: TopSenders
     list_largest_emails: ListLargestEmails

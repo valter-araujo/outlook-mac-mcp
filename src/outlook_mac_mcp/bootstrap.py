@@ -16,6 +16,7 @@ from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.preview_event_deletion import PreviewEventDeletion
 from outlook_mac_mcp.application.preview_event_update import PreviewEventUpdate
+from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.application.search_contacts import SearchContacts
 from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.application.top_senders import TopSenders
@@ -59,6 +60,7 @@ def build_use_cases(settings: Settings) -> UseCases:
         list_largest_emails=ListLargestEmails(mail),
         list_folders=ListFolders(folders),
         list_custom_folders=ListCustomFolders(folders),
+        resolve_folders=ResolveFolders(folders),
         search_contacts=SearchContacts(contacts),
         calendar_write=write,
     )
