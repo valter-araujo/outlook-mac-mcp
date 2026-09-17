@@ -14,6 +14,7 @@ from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
@@ -42,7 +43,7 @@ class FailingMailRepository:
     def get_by_id(self, email_id: str) -> EmailDetail:
         raise self._error
 
-    def search(self, request: SearchEmailsRequest) -> Page[Email]:
+    def search(self, request: SearchEmailsRequest) -> EmailSearchPage:
         raise self._error
 
     def list_matching(self, request: ListEmailsRequest) -> Page[Email]:

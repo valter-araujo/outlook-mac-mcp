@@ -5,6 +5,7 @@ from outlook_mac_mcp.application.search_emails_request import SearchEmailsReques
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.email_size import EmailSize
 from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.errors import EmailNotFoundError
@@ -41,15 +42,24 @@ class InMemoryMailRepository:
         newest_first = sorted(unread, key=lambda email: email.received_at, reverse=True)
         return _exact_page(newest_first, limit)
 
-    def search(self, request: SearchEmailsRequest) -> Page[Email]:
-        """Insertion order, deliberately not date order: the port promises relevance."""
+    def search(self, request: SearchEmailsRequest) -> EmailSearchPage:
+        """Insertion order, deliberately not date order: the port promises relevance.
+
+        Never has a second page to offer, so next_page_token is always None; page_token
+        is Graph-specific continuation mechanics this fake has nothing to follow.
+        """
         needle = request.term.casefold()
         matches = [
             email
             for email in self._emails[request.folder]
             if _matches(email, needle, request.scope)
         ]
-        return _exact_page(matches, request.limit)
+        return EmailSearchPage(
+            items=tuple(matches[: request.limit]),
+            total=len(matches),
+            total_is_exact=True,
+            next_page_token=None,
+        )
 
     def list_matching(self, request: ListEmailsRequest) -> Page[Email]:
         matching = self._matching(request.filters)

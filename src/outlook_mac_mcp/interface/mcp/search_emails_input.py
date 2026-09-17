@@ -42,6 +42,17 @@ SearchLimit = Annotated[
     int,
     Field(ge=MIN_LIMIT, le=MAX_LIMIT, description="Maximum number of emails to return."),
 ]
+PageToken = Annotated[
+    str,
+    Field(
+        min_length=1,
+        description=(
+            "Continuation token from a previous search_emails call's next_page_token, "
+            "to fetch the next page of that same search. Omit to start a new search "
+            "from the first page."
+        ),
+    ),
+]
 
 
 class SearchEmailsInput(BaseModel):
@@ -53,8 +64,13 @@ class SearchEmailsInput(BaseModel):
     folder: SearchFolder = FolderName.INBOX
     scope: Scope = SearchScope.ANY
     limit: SearchLimit = DEFAULT_LIMIT
+    page_token: PageToken | None = None
 
     def to_request(self) -> SearchEmailsRequest:
         return SearchEmailsRequest(
-            term=self.term, folder=self.folder, scope=self.scope, limit=self.limit
+            term=self.term,
+            folder=self.folder,
+            scope=self.scope,
+            limit=self.limit,
+            page_token=self.page_token,
         )

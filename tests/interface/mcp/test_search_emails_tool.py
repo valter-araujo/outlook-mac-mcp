@@ -17,6 +17,7 @@ from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
@@ -61,9 +62,51 @@ class LowerBoundMailRepository:
     def get_by_id(self, email_id: str) -> EmailDetail:
         raise NotImplementedError
 
-    def search(self, request: SearchEmailsRequest) -> Page[Email]:
-        return Page(
-            items=(make_email("hit", subject="deck"),), total=A_LOWER_BOUND, total_is_exact=False
+    def search(self, request: SearchEmailsRequest) -> EmailSearchPage:
+        return EmailSearchPage(
+            items=(make_email("hit", subject="deck"),),
+            total=A_LOWER_BOUND,
+            total_is_exact=False,
+            next_page_token=None,
+        )
+
+    def list_matching(self, request: ListEmailsRequest) -> Page[Email]:
+        raise NotImplementedError
+
+    def count_matching(self, filters: EmailFilters) -> int:
+        raise NotImplementedError
+
+    def scan_senders(self, filters: EmailFilters, ceiling: int) -> SenderScan:
+        raise NotImplementedError
+
+    def scan_email_sizes(self, filters: EmailFilters, ceiling: int) -> EmailSizeScan:
+        raise NotImplementedError
+
+
+A_NEXT_PAGE_TOKEN = "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?%24skip=20"
+
+
+class RecordingMailRepository:
+    """Remembers the request it was asked to search with, and always answers with a
+    page carrying a next_page_token, so a test can check what search_emails did with it.
+    """
+
+    def __init__(self) -> None:
+        self.last_request: SearchEmailsRequest | None = None
+
+    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
+        raise NotImplementedError
+
+    def get_by_id(self, email_id: str) -> EmailDetail:
+        raise NotImplementedError
+
+    def search(self, request: SearchEmailsRequest) -> EmailSearchPage:
+        self.last_request = request
+        return EmailSearchPage(
+            items=(make_email("hit", subject="deck"),),
+            total=1,
+            total_is_exact=True,
+            next_page_token=A_NEXT_PAGE_TOKEN,
         )
 
     def list_matching(self, request: ListEmailsRequest) -> Page[Email]:
@@ -113,8 +156,14 @@ async def tool_schema(server: MCPServer) -> dict[str, Any]:
     return properties
 
 
-async def test_registers_the_tool_with_term_folder_scope_and_limit() -> None:
-    assert set(await tool_schema(server_with())) == {"term", "folder", "scope", "limit"}
+async def test_registers_the_tool_with_term_folder_scope_limit_and_page_token() -> None:
+    assert set(await tool_schema(server_with())) == {
+        "term",
+        "folder",
+        "scope",
+        "limit",
+        "page_token",
+    }
 
 
 async def test_advertises_the_term_length_bounds() -> None:
@@ -305,6 +354,57 @@ async def test_tells_the_client_to_say_showing_n_of_m_and_to_narrow_the_scope() 
     assert '"showing N of M"' in description
     assert "at least" in description
     assert "narrowing the scope" in description
+
+
+async def test_says_in_its_description_how_to_get_the_next_page() -> None:
+    description = await tool_description(server_with())
+
+    assert "next_page_token" in description
+    assert "page_token" in description
+    assert "new search" in description
+
+
+async def test_the_page_carries_a_next_page_token_when_more_results_exist() -> None:
+    repository = RecordingMailRepository()
+    server = build_server(mail_only_use_cases(repository))
+
+    page = await search_page(server, {"term": "deck"})
+
+    assert page["next_page_token"] == A_NEXT_PAGE_TOKEN
+
+
+async def test_the_page_carries_no_next_page_token_when_this_is_the_last_page() -> None:
+    page = await search_page(server_with(make_email("hit", subject="deck")), {"term": "deck"})
+
+    assert page["next_page_token"] is None
+
+
+async def test_passes_page_token_through_to_the_request() -> None:
+    repository = RecordingMailRepository()
+    server = build_server(mail_only_use_cases(repository))
+
+    await search_page(server, {"term": "deck", "page_token": A_NEXT_PAGE_TOKEN})
+
+    assert repository.last_request is not None
+    assert repository.last_request.page_token == A_NEXT_PAGE_TOKEN
+
+
+async def test_omitting_page_token_behaves_exactly_as_it_always_did() -> None:
+    """Regression test: every other search_emails test in this file omits page_token
+    and must keep passing unchanged; this one pins that request.page_token is None.
+    """
+    repository = RecordingMailRepository()
+    server = build_server(mail_only_use_cases(repository))
+
+    await search_page(server, {"term": "deck"})
+
+    assert repository.last_request is not None
+    assert repository.last_request.page_token is None
+
+
+async def test_rejects_an_empty_page_token() -> None:
+    with pytest.raises(ToolError):
+        await call_search(server_with(), {"term": "deck", "page_token": ""})
 
 
 @pytest.mark.parametrize(

@@ -12,6 +12,7 @@ from outlook_mac_mcp.interface.mcp.calendar_tools import register_calendar_tools
 from outlook_mac_mcp.interface.mcp.calendar_write_tools import register_calendar_write_tools
 from outlook_mac_mcp.interface.mcp.email_detail_view import EmailDetailView
 from outlook_mac_mcp.interface.mcp.email_page_view import EmailPageView
+from outlook_mac_mcp.interface.mcp.email_search_page_view import EmailSearchPageView
 from outlook_mac_mcp.interface.mcp.get_email_input import EmailId, GetEmailInput
 from outlook_mac_mcp.interface.mcp.list_folders_tool import register_list_folders_tool
 from outlook_mac_mcp.interface.mcp.list_largest_emails_tool import (
@@ -26,6 +27,7 @@ from outlook_mac_mcp.interface.mcp.mail_listing_tools import register_mail_listi
 from outlook_mac_mcp.interface.mcp.observability import observed_tool_call
 from outlook_mac_mcp.interface.mcp.search_contacts_tool import register_search_contacts_tool
 from outlook_mac_mcp.interface.mcp.search_emails_input import (
+    PageToken,
     Scope,
     SearchEmailsInput,
     SearchFolder,
@@ -63,6 +65,8 @@ SEARCH_EMAILS_DESCRIPTION = (
     "do not infer a total, a date range, an earliest or latest email, or how far back the "
     "folder goes from them. To answer how many or how far back, use count_emails or "
     "list_emails with sort=oldest, which filter by date and count exactly. "
+    "To see more results from this same search, pass the returned next_page_token as "
+    "page_token; omitting page_token starts a new search from the first page. "
     + totals_guidance("a more specific term, the subject or sender scope, or another folder")
 )
 GET_EMAIL_TOOL = "get_email"
@@ -136,18 +140,21 @@ def _register_search_emails(server: MCPServer, use_case: SearchEmails) -> None:
         folder: SearchFolder = FolderName.INBOX,
         scope: Scope = SearchScope.ANY,
         limit: SearchLimit = DEFAULT_LIMIT,
-    ) -> EmailPageView:
+        page_token: PageToken | None = None,
+    ) -> EmailSearchPageView:
         try:
             return _translate_search(
                 use_case,
-                SearchEmailsInput(term=term, folder=folder, scope=scope, limit=limit),
+                SearchEmailsInput(
+                    term=term, folder=folder, scope=scope, limit=limit, page_token=page_token
+                ),
             )
         except OutlookMcpError as error:
             raise ToolError(str(error)) from error
 
 
-def _translate_search(use_case: SearchEmails, model: SearchEmailsInput) -> EmailPageView:
+def _translate_search(use_case: SearchEmails, model: SearchEmailsInput) -> EmailSearchPageView:
     with observed_tool_call(SEARCH_EMAILS_TOOL) as outcome:
         page = use_case.execute(model.to_request())
         outcome.item_count = len(page.items)
-        return EmailPageView.from_page(page)
+        return EmailSearchPageView.from_page(page)
