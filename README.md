@@ -385,6 +385,19 @@ email, decides.
 | Server fails to start with `ConfigurationError` | `OUTLOOK_MCP_CLIENT_ID` is missing from the `env` block, or `OUTLOOK_MCP_TIMEZONE` is not an IANA time zone name. |
 | Server does not appear in Claude Desktop | `uv` is not on the launcher's `PATH`; use an absolute path for `command`. |
 
+## Disclaimer
+
+This project is provided "as is", without warranty of any kind (see
+[LICENSE](LICENSE)). The author is not responsible for how others configure,
+run, or deploy this code, nor for data loss or any other consequence of doing
+so.
+
+The calendar-write tools perform real changes through Microsoft Graph, and
+`delete_event` cannot be undone by this server. Test against a low-stakes or
+disposable event first — see [Optional: calendar
+write](#optional-calendar-write) — before relying on it for anything that
+matters.
+
 ## License
 
 MIT
