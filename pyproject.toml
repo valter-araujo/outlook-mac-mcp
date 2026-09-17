@@ -6,6 +6,11 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
+    # TODO(2026-09-17): httpx's stable line has had no release since Dec 2024;
+    # Pydantic is assuming stewardship under the name httpx2 (confirmed via httpx2's
+    # own PyPI page), currently pre-1.0. Re-evaluate once httpx2 reaches a stable 1.0
+    # release -- verified via pip-audit/osv-scanner on 2026-09-17, zero known
+    # vulnerabilities in either package as of this check. No action needed now.
     "httpx>=0.28.1",
     "keyring>=25.7.0",
     "mcp>=2.2.0",
