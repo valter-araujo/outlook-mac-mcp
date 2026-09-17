@@ -8,6 +8,7 @@ from outlook_mac_mcp.application.search_emails_request import SearchEmailsReques
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
@@ -124,27 +125,46 @@ class GraphMailRepository:
     def scan_email_sizes(self, filters: EmailFilters, ceiling: int) -> EmailSizeScan:
         return scan_email_sizes(self._client, _messages_path(filters.folder), filters, ceiling)
 
-    def search(self, request: SearchEmailsRequest) -> Page[Email]:
+    def search(self, request: SearchEmailsRequest) -> EmailSearchPage:
         """No $orderby: Graph rejects it alongside $search, so results are relevance-ranked.
 
         The term is sent as a quoted KQL phrase, so text that reads like a query — `from:`,
         `AND`, a stray colon — is searched for rather than executed. Any property
         restriction is built from the scope enum, never from the term.
 
-        Graph cannot count a search, so the matches are walked separately, and only when
-        the page is not the last one: a page with no next link already holds every match.
+        `page_token`, when given, is followed directly (`GraphClient.follow`, which
+        validates its host the same way a fresh request is pinned to graph.microsoft.com)
+        instead of the query being rebuilt: `term`/`folder`/`scope` still validate and are
+        still available, so the match count below stays consistent across every page of
+        the same search.
+
+        Graph cannot count a search, so the matches are walked separately. The cheap
+        shortcut — trust this page's own size as the total — only holds for a first page
+        that is also the last one: a later page's own size never accounts for what came
+        before it, so anything else, first page or not, gets the real count.
         """
         path = f"/me/mailFolders/{request.folder.value}/messages"
         search = to_search_query(request.term, request.scope)
-        payload = self._client.get(
-            path,
-            {"$search": search, "$top": request.limit, "$select": ",".join(MESSAGE_FIELDS)},
-        )
+        if request.page_token is not None:
+            payload = self._client.follow(request.page_token)
+        else:
+            payload = self._client.get(
+                path,
+                {"$search": search, "$top": request.limit, "$select": ",".join(MESSAGE_FIELDS)},
+            )
         emails = tuple(to_email(message) for message in read_items(payload))
-        if read_next_link(payload) is None:
-            return Page(items=emails, total=len(emails), total_is_exact=True)
+        next_page_token = read_next_link(payload)
+        if request.page_token is None and next_page_token is None:
+            return EmailSearchPage(
+                items=emails, total=len(emails), total_is_exact=True, next_page_token=None
+            )
         count = count_search_matches(self._client, path, search)
-        return Page(items=emails, total=count.total, total_is_exact=count.is_exact)
+        return EmailSearchPage(
+            items=emails,
+            total=count.total,
+            total_is_exact=count.is_exact,
+            next_page_token=next_page_token,
+        )
 
 
 def _messages_path(folder: FolderName) -> str:

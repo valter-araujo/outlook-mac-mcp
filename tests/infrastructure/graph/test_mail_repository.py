@@ -10,13 +10,18 @@ from outlook_mac_mcp.application.list_emails_request import ListEmailsRequest
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.errors import EmailNotFoundError, InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
 from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.domain.sort_order import SortOrder
 from outlook_mac_mcp.infrastructure.graph.client import GRAPH_BASE_URL, GraphClient
-from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
+from outlook_mac_mcp.infrastructure.graph.errors import (
+    GraphRequestError,
+    GraphResponseError,
+    UnsupportedHostError,
+)
 from outlook_mac_mcp.infrastructure.graph.mail_repository import (
     MALFORMED_ID_ERROR_CODE,
     GraphMailRepository,
@@ -416,7 +421,7 @@ def test_search_returns_empty_when_nothing_matches(repository: GraphMailReposito
 
     page = repository.search(A_SEARCH_REQUEST)
 
-    assert page == Page(items=(), total=0, total_is_exact=True)
+    assert page == EmailSearchPage(items=(), total=0, total_is_exact=True, next_page_token=None)
 
 
 @respx.mock
@@ -431,6 +436,7 @@ def test_search_reports_an_exact_total_without_counting_when_the_page_is_the_las
 
     assert page.total == 2
     assert page.total_is_exact is True
+    assert page.next_page_token is None
     assert route.call_count == 1
 
 
@@ -438,13 +444,13 @@ def test_search_reports_an_exact_total_without_counting_when_the_page_is_the_las
 def test_search_counts_the_matches_by_id_when_the_page_is_not_the_last(
     repository: GraphMailRepository,
 ) -> None:
+    next_link = f"{INBOX_URL}?%24skip=1"
     count = respx.get(INBOX_URL, params__contains={"$select": "id"}).mock(
         return_value=httpx.Response(200, json={"value": [{"id": str(n)} for n in range(45)]})
     )
     respx.get(INBOX_URL).mock(
         return_value=httpx.Response(
-            200,
-            json={"value": [graph_message("a")], "@odata.nextLink": f"{INBOX_URL}?%24skip=1"},
+            200, json={"value": [graph_message("a")], "@odata.nextLink": next_link}
         )
     )
 
@@ -453,6 +459,7 @@ def test_search_counts_the_matches_by_id_when_the_page_is_not_the_last(
     assert [email.id for email in page.items] == ["a"]
     assert page.total == 45
     assert page.total_is_exact is True
+    assert page.next_page_token == next_link
     assert dict(count.calls.last.request.url.params)["$search"] == '"\\"deck\\""'
 
 
@@ -478,6 +485,67 @@ def test_search_reports_the_ceiling_as_a_lower_bound(repository: GraphMailReposi
 
     assert page.total == COUNT_CEILING
     assert page.total_is_exact is False
+
+
+@respx.mock
+def test_search_follows_a_page_token_instead_of_rebuilding_the_query(
+    repository: GraphMailRepository,
+) -> None:
+    """No route is registered for a freshly built $search query at all: if the adapter
+    rebuilt the query instead of following the token, this request would go unmocked and
+    the test would fail on that, not merely report a wrong item.
+
+    Regression test: omitting page_token must behave exactly as it always did -- see
+    every other search_* test above, none of which pass one.
+    """
+    next_link = f"{INBOX_URL}?%24skip=20"
+    followed = respx.get(next_link).mock(
+        return_value=httpx.Response(200, json={"value": [graph_message("second-page")]})
+    )
+    respx.get(INBOX_URL, params__contains={"$select": "id"}).mock(
+        return_value=httpx.Response(200, json={"value": [{"id": "1"}, {"id": "2"}]})
+    )
+
+    page = repository.search(SearchEmailsRequest(term="deck", limit=20, page_token=next_link))
+
+    assert followed.called
+    assert [email.id for email in page.items] == ["second-page"]
+
+
+@respx.mock
+def test_search_recounts_matches_when_a_followed_page_is_itself_the_last(
+    repository: GraphMailRepository,
+) -> None:
+    """A later page's own size must never be trusted as the total: it never accounts for
+    the matches already returned on earlier pages, unlike a first page with no next link.
+    """
+    next_link = f"{INBOX_URL}?%24skip=20"
+    respx.get(next_link).mock(
+        return_value=httpx.Response(200, json={"value": [graph_message("last-page")]})
+    )
+    respx.get(INBOX_URL, params__contains={"$select": "id"}).mock(
+        return_value=httpx.Response(200, json={"value": [{"id": str(n)} for n in range(25)]})
+    )
+
+    page = repository.search(SearchEmailsRequest(term="deck", limit=20, page_token=next_link))
+
+    assert page.total == 25
+    assert page.total_is_exact is True
+    assert page.next_page_token is None
+
+
+@respx.mock
+def test_search_rejects_a_page_token_with_a_non_graph_host(
+    repository: GraphMailRepository,
+) -> None:
+    with pytest.raises(UnsupportedHostError):
+        repository.search(
+            SearchEmailsRequest(
+                term="deck", page_token="https://evil.example.com/me/messages?%24skip=1"
+            )
+        )
+
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
