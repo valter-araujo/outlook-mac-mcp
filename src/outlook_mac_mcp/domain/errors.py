@@ -14,6 +14,10 @@ class EmailNotFoundError(OutlookMcpError):
     """The mailbox holds no message with the requested id."""
 
 
+class EventNotFoundError(OutlookMcpError):
+    """The calendar holds no event with the requested id."""
+
+
 class DraftNotFoundError(OutlookMcpError):
     """No draft is waiting under the given token: it was never issued, already used,
     or issued by a server process that has since restarted.

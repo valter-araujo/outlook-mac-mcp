@@ -12,8 +12,9 @@ class Event:
     midnight in its own zone and is not treated differently here; `is_all_day` only tells
     a reader that the clock times are not meaningful.
 
-    `body` defaults to empty because a listing never selects it, the same reason `Email`
-    carries no body; it is only ever populated by reading back a just-created event.
+    `body` and `attendees` default to empty because a listing never selects either, the
+    same reason `Email` carries no body; both are only ever populated by a read that
+    asks for them specifically, such as fetching one event by id.
     """
 
     id: str
@@ -24,3 +25,4 @@ class Event:
     location: str
     organizer: EmailAddress
     body: str = ""
+    attendees: tuple[EmailAddress, ...] = ()
