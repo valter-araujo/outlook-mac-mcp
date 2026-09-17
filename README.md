@@ -78,7 +78,12 @@ include exact versions.
 
 ### Validated tools
 
-Sorted alphabetically by tool name.
+Sorted alphabetically by tool name. Three shipped tools are not in this table yet —
+each has unit and respx coverage but no live validation against a real mailbox:
+
+- `search_contacts` — no contact exists in the test mailbox to search for yet.
+- `preview_event_deletion` and `delete_event` — gated behind their own opt-in flag
+  (`OUTLOOK_MCP_ENABLE_CALENDAR_DELETE`), not yet exercised live.
 
 | Tool | Validated | What was checked |
 |---|---|---|
@@ -97,9 +102,10 @@ Sorted alphabetically by tool name.
 | `top_senders` | 2026-09-15 | A full inbox scan hit the configured ceiling with `coverage_is_complete=false`; the client reported the partial coverage explicitly, as the description asks. |
 | `update_event` | 2026-09-17 | Applied the previewed time change (10:00–10:30 -> 11:00–11:30) exactly; the updated event reflected only that change. |
 
-Every tool shipped so far has been validated against a real mailbox on the environment
-above. Search quoting is additionally covered by a live positive-control check, see
-[Integration tests](#integration-tests).
+Every tool below has been validated against a real mailbox on the environment above;
+`search_contacts`, `preview_event_deletion`, and `delete_event` have unit and respx
+coverage but no live validation yet (see above). Search quoting is additionally covered
+by a live positive-control check, see [Integration tests](#integration-tests).
 
 ## Scope
 
