@@ -15,9 +15,10 @@ from outlook_mac_mcp.infrastructure.errors import ConfigurationError
 CLIENT_ID_ENV_VAR = "OUTLOOK_MCP_CLIENT_ID"
 TIMEZONE_ENV_VAR = "OUTLOOK_MCP_TIMEZONE"
 CALENDAR_WRITE_ENV_VAR = "OUTLOOK_MCP_ENABLE_CALENDAR_WRITE"
+CALENDAR_DELETE_ENV_VAR = "OUTLOOK_MCP_ENABLE_CALENDAR_DELETE"
 
-# Only these spellings, so a typo such as "yes" or "on" cannot silently leave writes off
-# when the user meant them on, nor be read as on when they meant off.
+# Only these spellings, so a typo such as "yes" or "on" cannot silently leave a capability
+# off when the user meant it on, nor be read as on when they meant off.
 ENABLED_VALUES = frozenset({"true", "1"})
 DISABLED_VALUES = frozenset({"false", "0", ""})
 
@@ -27,6 +28,7 @@ class Settings:
     client_id: str
     timezone: ZoneInfo
     calendar_write_enabled: bool
+    calendar_delete_enabled: bool
 
 
 def load_settings(environment: Mapping[str, str]) -> Settings:
@@ -34,17 +36,32 @@ def load_settings(environment: Mapping[str, str]) -> Settings:
         client_id=_read_client_id(environment),
         timezone=resolve_timezone(environment),
         calendar_write_enabled=read_calendar_write_flag(environment),
+        calendar_delete_enabled=read_calendar_delete_flag(environment),
     )
 
 
 def read_calendar_write_flag(environment: Mapping[str, str]) -> bool:
     """Absent means off: a write capability must be asked for, never assumed."""
-    value = environment.get(CALENDAR_WRITE_ENV_VAR, "").strip().lower()
+    return _read_boolean_flag(environment, CALENDAR_WRITE_ENV_VAR)
+
+
+def read_calendar_delete_flag(environment: Mapping[str, str]) -> bool:
+    """Absent means off, same as the write flag it is independent from.
+
+    Delete is destructive in a way create and update are not (an update can be
+    corrected with another update; a delete cannot), so enabling write must never
+    silently enable it too.
+    """
+    return _read_boolean_flag(environment, CALENDAR_DELETE_ENV_VAR)
+
+
+def _read_boolean_flag(environment: Mapping[str, str], env_var: str) -> bool:
+    value = environment.get(env_var, "").strip().lower()
     if value in ENABLED_VALUES:
         return True
     if value in DISABLED_VALUES:
         return False
-    raise ConfigurationError(f"{CALENDAR_WRITE_ENV_VAR} must be true or false, not {value!r}")
+    raise ConfigurationError(f"{env_var} must be true or false, not {value!r}")
 
 
 def resolve_timezone(environment: Mapping[str, str]) -> ZoneInfo:

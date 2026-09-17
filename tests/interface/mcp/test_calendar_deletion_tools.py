@@ -13,9 +13,14 @@ from outlook_mac_mcp.interface.mcp.calendar_deletion_tools import (
     DELETE_EVENT_TOOL,
     PREVIEW_EVENT_DELETION_TOOL,
 )
+from outlook_mac_mcp.interface.mcp.calendar_update_tools import UPDATE_EVENT_TOOL
+from outlook_mac_mcp.interface.mcp.calendar_write_tools import CREATE_EVENT_TOOL
 from outlook_mac_mcp.interface.mcp.server import build_server
 from tests.fakes.in_memory_calendar_writer import InMemoryCalendarWriter
-from tests.fakes.use_case_bundles import calendar_write_use_cases
+from tests.fakes.use_case_bundles import (
+    calendar_write_use_cases,
+    calendar_write_use_cases_without_deletion,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -61,6 +66,22 @@ async def test_registers_the_deletion_pair_when_the_flag_is_on() -> None:
     server, _ = server_with_writes()
 
     assert {PREVIEW_EVENT_DELETION_TOOL, DELETE_EVENT_TOOL} <= await tool_names(server)
+
+
+async def test_does_not_register_the_deletion_pair_when_only_write_is_on() -> None:
+    """OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true alone must not also enable the one
+    irreversible tool; OUTLOOK_MCP_ENABLE_CALENDAR_DELETE gates it independently.
+    """
+    writer = InMemoryCalendarWriter()
+    writer.seed(CURRENT)
+    server = build_server(calendar_write_use_cases_without_deletion(writer))
+
+    names = await tool_names(server)
+
+    assert PREVIEW_EVENT_DELETION_TOOL not in names
+    assert DELETE_EVENT_TOOL not in names
+    assert CREATE_EVENT_TOOL in names
+    assert UPDATE_EVENT_TOOL in names
 
 
 async def test_preview_shows_the_full_current_event_without_deleting() -> None:

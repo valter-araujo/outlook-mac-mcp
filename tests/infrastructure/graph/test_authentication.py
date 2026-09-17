@@ -111,7 +111,10 @@ def test_persists_the_cache_after_a_silent_refresh() -> None:
 
 def settings_with_calendar_write(enabled: bool) -> Settings:
     return Settings(
-        client_id="a-client-id", timezone=ZoneInfo("UTC"), calendar_write_enabled=enabled
+        client_id="a-client-id",
+        timezone=ZoneInfo("UTC"),
+        calendar_write_enabled=enabled,
+        calendar_delete_enabled=False,
     )
 
 

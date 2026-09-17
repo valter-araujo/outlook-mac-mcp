@@ -34,6 +34,11 @@ DELETE_EVENT_DESCRIPTION = (
 
 
 def register_calendar_deletion_tools(server: MCPServer, use_cases: CalendarWriteUseCases) -> None:
+    """A no-op when the deletion pair is absent: gated by its own flag on top of
+    calendar write, see `Settings.calendar_delete_enabled`.
+    """
+    if use_cases.preview_event_deletion is None or use_cases.delete_event is None:
+        return
     _register_preview_event_deletion(server, use_cases.preview_event_deletion)
     _register_delete_event(server, use_cases.delete_event)
 

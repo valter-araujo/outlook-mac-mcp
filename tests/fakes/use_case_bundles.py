@@ -81,6 +81,37 @@ def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
     )
 
 
+def calendar_write_use_cases_without_deletion(writer: CalendarWriter) -> UseCases:
+    """A bundle with create and update wired to `writer`, deletion left unset — as if
+    OUTLOOK_MCP_ENABLE_CALENDAR_DELETE were off while write is on.
+    """
+    create_drafts: DraftStore[EventDraft] = DraftStore()
+    update_drafts: DraftStore[EventUpdateDraft] = DraftStore()
+    write = CalendarWriteUseCases(
+        preview_event=PreviewEvent(create_drafts),
+        create_event=CreateEvent(create_drafts, writer),
+        preview_event_update=PreviewEventUpdate(writer, update_drafts),
+        update_event=UpdateEvent(update_drafts, writer),
+        preview_event_deletion=None,
+        delete_event=None,
+    )
+    bundle = _bundle(InMemoryMailRepository(), InMemoryCalendarRepository(), FixedClock(FROZEN_NOW))
+    return UseCases(
+        list_unread_emails=bundle.list_unread_emails,
+        search_emails=bundle.search_emails,
+        get_email=bundle.get_email,
+        list_todays_events=bundle.list_todays_events,
+        list_upcoming_events=bundle.list_upcoming_events,
+        list_emails=bundle.list_emails,
+        count_emails=bundle.count_emails,
+        top_senders=bundle.top_senders,
+        list_largest_emails=bundle.list_largest_emails,
+        list_folders=bundle.list_folders,
+        search_contacts=bundle.search_contacts,
+        calendar_write=write,
+    )
+
+
 def folders_use_cases(repository: MailFolderRepository) -> UseCases:
     """A bundle for tests of the list_folders tool; every other side is empty."""
     bundle = _bundle(InMemoryMailRepository(), InMemoryCalendarRepository(), FixedClock(FROZEN_NOW))

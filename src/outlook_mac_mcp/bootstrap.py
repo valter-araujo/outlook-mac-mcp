@@ -68,13 +68,25 @@ def _calendar_write(client: GraphClient, settings: Settings) -> CalendarWriteUse
     """
     create_drafts: DraftStore[EventDraft] = DraftStore()
     update_drafts: DraftStore[EventUpdateDraft] = DraftStore()
-    deletion_drafts: DraftStore[EventDeletionDraft] = DraftStore()
     writer = GraphCalendarWriter(client, settings.timezone)
+    preview_event_deletion, delete_event = _calendar_deletion(writer, settings)
     return CalendarWriteUseCases(
         preview_event=PreviewEvent(create_drafts),
         create_event=CreateEvent(create_drafts, writer),
         preview_event_update=PreviewEventUpdate(writer, update_drafts),
         update_event=UpdateEvent(update_drafts, writer),
-        preview_event_deletion=PreviewEventDeletion(writer, deletion_drafts),
-        delete_event=DeleteEvent(deletion_drafts, writer),
+        preview_event_deletion=preview_event_deletion,
+        delete_event=delete_event,
     )
+
+
+def _calendar_deletion(
+    writer: GraphCalendarWriter, settings: Settings
+) -> tuple[PreviewEventDeletion, DeleteEvent] | tuple[None, None]:
+    """Gated by its own flag on top of calendar write, so the one irreversible action
+    is never enabled just because write is.
+    """
+    if not settings.calendar_delete_enabled:
+        return None, None
+    deletion_drafts: DraftStore[EventDeletionDraft] = DraftStore()
+    return PreviewEventDeletion(writer, deletion_drafts), DeleteEvent(deletion_drafts, writer)

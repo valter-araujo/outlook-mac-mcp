@@ -110,8 +110,9 @@ therefore unsupported by the official add-in and the Microsoft 365 connector.
 ## Incremental scope
 - v1 (read-only): unread emails, by folder, by term; read one email by id, body
   included; list folders; today's and upcoming events; contact search.
-- v2: create, update and delete calendar events; mark as read — behind a flag,
-  off by default.
+- v2: create and update calendar events — behind a flag, off by default; delete
+  calendar events — behind a second flag, off by default even when the first
+  one is on; mark as read — not yet built.
 - v3: send email — behind a flag, explicit confirmation per call.
 - Do not anticipate future versions or leave "for later" hooks.
 

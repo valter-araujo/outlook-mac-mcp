@@ -100,22 +100,26 @@ above. Search quoting is additionally covered by a live positive-control check, 
 - **v1 (read-only):** unread emails, emails by folder, search by term, read one
   email by id (body included), list folders, today's / upcoming events, contact
   search.
-- **v2:** create, update and delete calendar events; mark as read — behind a
-  config flag, off by default.
+- **v2:** create and update calendar events — behind a config flag, off by
+  default; delete calendar events — behind a second flag, off by default even
+  when the first one is on; mark as read — not yet built.
 - **v3:** send email — behind a config flag, off by default, with explicit
   per-call confirmation.
 
 ## Tools
 
-Read tools are always registered. The six write tools (marked `v2, flagged`) are
-registered only when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
-[Optional: calendar write](#optional-calendar-write)). Sorted alphabetically by tool name.
+Read tools are always registered. The four tools marked `v2, flagged` register only
+when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
+[Optional: calendar write](#optional-calendar-write)). `preview_event_deletion` and
+`delete_event`, marked `v2, flagged + calendar delete`, additionally need
+`OUTLOOK_MCP_ENABLE_CALENDAR_DELETE=true` (see
+[Optional: calendar delete](#optional-calendar-delete)). Sorted alphabetically by tool name.
 
 | Tool | What it does |
 |---|---|
 | `count_emails` | Count emails matching the same filters as `list_emails`, exactly, without listing them. |
 | `create_event` (v2, flagged) | Create the event previewed under a token from `preview_event`. |
-| `delete_event` (v2, flagged) | Delete the event previewed under a token from `preview_event_deletion`. Irreversible. |
+| `delete_event` (v2, flagged + calendar delete) | Delete the event previewed under a token from `preview_event_deletion`. Irreversible. |
 | `get_email` | Fetch one email by id, body included. |
 | `list_emails` | List emails in a folder with any combination of filters (read state, sender, date range, attachments), sorted newest or oldest, with an exact total. |
 | `list_folders` | List the mailbox's well-known folders with their unread and total item counts. |
@@ -124,7 +128,7 @@ registered only when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 | `list_unread_emails` | List unread emails in a folder, newest first. |
 | `list_upcoming_events` | List calendar events from now through 1–30 days ahead. |
 | `preview_event` (v2, flagged) | Validate a new event and return a token and a summary, without creating it. |
-| `preview_event_deletion` (v2, flagged) | Fetch an existing event and return a token and a summary showing every field, unabbreviated, without deleting anything. |
+| `preview_event_deletion` (v2, flagged + calendar delete) | Fetch an existing event and return a token and a summary showing every field, unabbreviated, without deleting anything. |
 | `preview_event_update` (v2, flagged) | Fetch an existing event, validate the requested changes, and return a token and a diff summary (old value -> new value, changed fields only), without applying anything. |
 | `search_contacts` | Search contacts by a display-name prefix or an exact email address. |
 | `search_emails` | Search a folder for a term, ranked by relevance, not by date. |
@@ -308,7 +312,9 @@ Three things this configuration has to get right:
   `which uv` (typically `~/.local/bin/uv`).
 
 Restart Claude Desktop. `list_unread_emails` and the other read tools should appear in
-the tool list; the six calendar-write tools appear only with the write flag on.
+the tool list; the four create/update tools appear only with the write flag on, and
+`preview_event_deletion`/`delete_event` need the delete flag on top of that (see
+[Optional: calendar delete](#optional-calendar-delete)).
 
 ### Optional: log level
 
@@ -329,8 +335,8 @@ at startup: an unknown one stops both the server and `sign-in` with a
 
 Off by default. Setting `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` in the `env` block
 does two things: the server requests the `Calendars.ReadWrite` scope in addition to the
-read scopes, and it registers the write tools. Accepted values are `true`, `false`,
-`1` and `0`; anything else stops the server with a `ConfigurationError`.
+read scopes, and it registers the create and update tools. Accepted values are `true`,
+`false`, `1` and `0`; anything else stops the server with a `ConfigurationError`.
 
 Because the scope set changes, the token already in the Keychain no longer satisfies
 it and every tool fails with "no usable cached credential" until you sign in again.
@@ -346,10 +352,12 @@ uv run outlook-mac-mcp sign-in
 Turning the flag off again does not shrink the consent already granted; revoke it at
 <https://account.live.com/consent/Manage> if you want the write permission gone.
 
-With the flag on, six tools appear, as three independent preview-then-confirm pairs:
-create, update and delete. Each pair is always a two-step handshake, and each has its
-own token namespace — a token from one pair is refused by every other pair's apply
-tool, not just reused within its own.
+With the flag on, four tools appear, as two independent preview-then-confirm pairs:
+create and update. A third pair, delete, needs its own additional flag on top of this
+one — see [Optional: calendar delete](#optional-calendar-delete) — precisely because it
+is the one pair whose apply step cannot be undone. Each pair is always a two-step
+handshake, and each has its own token namespace — a token from one pair is refused by
+every other pair's apply tool, not just reused within its own.
 
 1. `preview_event` takes the full details of a new event (subject, start, end with UTC
    offsets, optional location, all-day flag, up to 50 attendee addresses), validates
@@ -360,22 +368,43 @@ tool, not just reused within its own.
    changed field as old value -> new value — never just the resulting state. A field
    left out of the call is left exactly as it is. `update_event` takes only that token
    and applies just the changed fields.
-3. `preview_event_deletion` takes an event id, fetches the current event, and returns a
-   token plus a summary showing every field of the event, unabbreviated — subject,
-   start, end, location, body and attendees — so the confirmation shows exactly what
-   would be removed. This matters most when two similar events exist and only their
-   full detail tells them apart. `delete_event` takes only that token and deletes the
-   event; this cannot be undone by the server.
 
 Every apply tool's token works exactly once and only within the same server process;
 an unknown token, an already used token, or a token issued by a different pair's
-preview tool is refused, and a server restart discards every pending draft.
+preview tool is refused, and a server restart discards every pending draft. This rule
+holds across every pair, including delete, described next.
 
 Every tool description instructs the client to show the summary and get the user's
 agreement before applying, and to get explicit confirmation of every detail before even
 previewing when any of it came from email content. Email is untrusted input; a message
 can be written to talk a model into changing your calendar, and the user, never the
 email, decides.
+
+### Optional: calendar delete
+
+Off by default, and independent of calendar write — setting
+`OUTLOOK_MCP_ENABLE_CALENDAR_DELETE=true` by itself does nothing.
+`preview_event_deletion` and `delete_event` register only when **both** flags are
+`true`: calendar write builds the Graph calendar writer these two tools call through,
+and this flag then adds the one irreversible action on top of it. No additional Graph
+scope is requested — `Calendars.ReadWrite`, already required by calendar write, covers
+delete on the Graph side too, so no extra consent prompt is needed beyond the one from
+[Optional: calendar write](#optional-calendar-write).
+
+```sh
+export OUTLOOK_MCP_CLIENT_ID=<your client id>
+export OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true
+export OUTLOOK_MCP_ENABLE_CALENDAR_DELETE=true
+uv run outlook-mac-mcp sign-in
+```
+
+`preview_event_deletion` takes an event id, fetches the current event, and returns a
+token plus a summary showing every field of the event, unabbreviated — subject, start,
+end, location, body and attendees — so the confirmation shows exactly what would be
+removed. This matters most when two similar events exist and only their full detail
+tells them apart. `delete_event` takes only that token and deletes the event; this
+cannot be undone by the server. The pair follows the same token rules as create and
+update — single use, its own namespace, refused by every other pair's apply tool.
 
 ### Troubleshooting
 
