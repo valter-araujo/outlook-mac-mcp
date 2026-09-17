@@ -141,6 +141,32 @@ when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 | `top_senders` | Rank a folder's senders by how many emails each sent, scanning up to 10,000 matching emails per call. |
 | `update_event` (v2, flagged) | Apply the change previewed under a token from `preview_event_update`. Only the fields actually passed to the preview are changed. |
 
+### Custom folders
+
+A custom folder is any folder the user created in Outlook — not one of the five
+well-known folders (inbox, archive, junk email, sent items, drafts). `search_emails`,
+`list_emails`, `count_emails`, `top_senders`, `list_largest_emails` and
+`list_unread_emails` all accept one as their `folder` argument, addressed by its full
+path exactly as `list_folders` reports it under `custom` (folder names repeat across a
+mailbox; the full path is what disambiguates them). Run `list_folders` first to
+discover the exact paths available, then pass that string as `folder`. Resolving a
+custom path costs one extra walk of the mailbox's folder tree per call (the same walk
+`list_folders` does for its `custom` list) — nothing is cached between calls.
+
+```
+# Well-known folder (unchanged)
+search_emails(term="Cargill", folder="archive")
+
+# All well-known folders (unchanged — never includes custom folders)
+count_emails(folder="all")
+
+# A custom folder, addressed by its full path
+list_emails(folder="Entrevistas/Work/AWS", sort="oldest")
+
+# A top-level custom folder
+top_senders(folder="Seguros")
+```
+
 ## Security model
 
 - Least privilege: the token can only do what the requested scopes allow, even
