@@ -125,7 +125,7 @@ when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 | `delete_event` (v2, flagged + calendar delete) | Delete the event previewed under a token from `preview_event_deletion`. Irreversible. |
 | `get_email` | Fetch one email by id, body included. |
 | `list_emails` | List emails in a folder with any combination of filters (read state, sender, date range, attachments), sorted newest or oldest, with an exact total. |
-| `list_folders` | List the mailbox's well-known folders with their unread and total item counts. |
+| `list_folders` | List the mailbox's well-known folders with their unread and total item counts, plus every user-created folder found by walking the mailbox tree, each identified by its full path. |
 | `list_largest_emails` | List a folder's largest emails by byte size, largest first, scanning up to 10,000 matching emails per call; emails with no determinable size are counted separately in `skipped`. |
 | `list_todays_events` | List today's calendar events, earliest first. |
 | `list_unread_emails` | List unread emails in a folder, newest first. |
