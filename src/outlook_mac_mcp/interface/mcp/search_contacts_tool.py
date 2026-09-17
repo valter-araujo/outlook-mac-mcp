@@ -12,6 +12,7 @@ from outlook_mac_mcp.interface.mcp.search_contacts_input import (
     Term,
 )
 from outlook_mac_mcp.interface.mcp.totals_guidance import totals_guidance
+from outlook_mac_mcp.interface.mcp.untrusted_content_warning import light_untrusted_content_note
 
 SEARCH_CONTACTS_TOOL = "search_contacts"
 SEARCH_CONTACTS_DESCRIPTION = (
@@ -21,6 +22,8 @@ SEARCH_CONTACTS_DESCRIPTION = (
     "email address, only an exact one, so a term that is not a complete address will "
     "match by name only, never by a partial address. "
     + totals_guidance("a longer or more exact term")
+    + " "
+    + light_untrusted_content_note()
 )
 
 

@@ -14,6 +14,7 @@ from outlook_mac_mcp.interface.mcp.list_upcoming_events_input import (
 )
 from outlook_mac_mcp.interface.mcp.observability import observed_tool_call
 from outlook_mac_mcp.interface.mcp.totals_guidance import totals_guidance
+from outlook_mac_mcp.interface.mcp.untrusted_content_warning import light_untrusted_content_note
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 
 LIST_TODAYS_EVENTS_TOOL = "list_todays_events"
@@ -23,13 +24,15 @@ LIST_TODAYS_EVENTS_DESCRIPTION = (
     "Includes all-day events and events that started yesterday or end tomorrow. "
     "Recurring series appear as today's occurrence. Returns metadata only. "
     + totals_guidance("this tool takes no arguments, so tell the user the day holds more")
+    + " "
+    + light_untrusted_content_note()
 )
 LIST_UPCOMING_EVENTS_TOOL = "list_upcoming_events"
 LIST_UPCOMING_EVENTS_DESCRIPTION = (
     "List calendar events from now until `days` days ahead, earliest first, with every "
     "time carrying its UTC offset. An event already in progress is included; one that "
     "ended earlier today is not. Recurring series appear as their occurrences. "
-    "Returns metadata only. " + totals_guidance("fewer days")
+    "Returns metadata only. " + totals_guidance("fewer days") + " " + light_untrusted_content_note()
 )
 
 

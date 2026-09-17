@@ -17,6 +17,7 @@ from outlook_mac_mcp.interface.mcp.list_largest_emails_input import (
     ListLargestEmailsInput,
 )
 from outlook_mac_mcp.interface.mcp.observability import observed_tool_call
+from outlook_mac_mcp.interface.mcp.untrusted_content_warning import untrusted_content_warning
 
 LIST_LARGEST_EMAILS_TOOL = "list_largest_emails"
 LIST_LARGEST_EMAILS_DESCRIPTION = (
@@ -34,7 +35,10 @@ LIST_LARGEST_EMAILS_DESCRIPTION = (
     "When coverage_is_complete is false, the ranking covers ONLY the scanned emails, not "
     "the whole folder: tell the user it was computed over scanned of total emails, do not "
     "present it as the folder's largest emails, and suggest narrowing with received_after "
-    "so that every matching email fits within the scan. " + folder_scope_guidance()
+    "so that every matching email fits within the scan. "
+    + folder_scope_guidance()
+    + " "
+    + untrusted_content_warning()
 )
 
 

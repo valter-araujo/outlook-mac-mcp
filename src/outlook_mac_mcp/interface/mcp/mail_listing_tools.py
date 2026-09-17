@@ -23,6 +23,7 @@ from outlook_mac_mcp.interface.mcp.folder_scope_guidance import folder_scope_gui
 from outlook_mac_mcp.interface.mcp.list_emails_input import ListEmailsInput, ListLimit, Sort
 from outlook_mac_mcp.interface.mcp.observability import observed_tool_call
 from outlook_mac_mcp.interface.mcp.totals_guidance import totals_guidance
+from outlook_mac_mcp.interface.mcp.untrusted_content_warning import untrusted_content_warning
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 
 LIST_EMAILS_TOOL = "list_emails"
@@ -37,6 +38,8 @@ LIST_EMAILS_DESCRIPTION = (
     + totals_guidance("a sender, a tighter date range, or a read or attachment state")
     + " "
     + folder_scope_guidance()
+    + " "
+    + untrusted_content_warning()
 )
 COUNT_EMAILS_TOOL = "count_emails"
 COUNT_EMAILS_DESCRIPTION = (

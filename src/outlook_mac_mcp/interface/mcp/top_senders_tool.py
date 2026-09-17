@@ -19,6 +19,7 @@ from outlook_mac_mcp.interface.mcp.folder_scope_guidance import folder_scope_gui
 from outlook_mac_mcp.interface.mcp.observability import observed_tool_call
 from outlook_mac_mcp.interface.mcp.sender_ranking_view import SenderRankingView
 from outlook_mac_mcp.interface.mcp.top_senders_input import SenderLimit, TopSendersInput
+from outlook_mac_mcp.interface.mcp.untrusted_content_warning import untrusted_content_warning
 
 TOP_SENDERS_TOOL = "top_senders"
 TOP_SENDERS_DESCRIPTION = (
@@ -34,7 +35,10 @@ TOP_SENDERS_DESCRIPTION = (
     "present it as the folder's ranking, and suggest narrowing with received_after (and "
     "received_before) so that every matching email fits within the scan. "
     "Counts are per scanned email; use count_emails with a sender filter for an exact "
-    "count of one sender across the whole folder. " + folder_scope_guidance()
+    "count of one sender across the whole folder. "
+    + folder_scope_guidance()
+    + " "
+    + untrusted_content_warning()
 )
 
 
