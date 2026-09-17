@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Session handoff / scratch notes for resuming work across chat sessions — never committed
+HANDOFF.md
+*handoff*.md
+*HANDOFF*.md
