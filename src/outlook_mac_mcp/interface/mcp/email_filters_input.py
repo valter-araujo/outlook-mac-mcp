@@ -6,12 +6,20 @@ from outlook_mac_mcp.domain.email_filters import (
     MAX_SENDER_ADDRESS_LENGTH,
     EmailFilters,
 )
-from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.folder_selection import FolderSelection
 
 # Mirrors SENDER_ADDRESS_PATTERN so the refusal appears in the tool schema.
 SENDER_PATTERN = r"^[^@\s']+@[^@\s']+\.[^@\s']+$"
 
-FilterFolder = Annotated[FolderName, Field(description="Mailbox folder to read.")]
+FilterFolder = Annotated[
+    FolderSelection,
+    Field(
+        description=(
+            "Mailbox folder to read, or all to search every well-known folder and merge "
+            "the results."
+        )
+    ),
+]
 IsRead = Annotated[
     bool | None,
     Field(description="true for read emails only, false for unread only, omit for both."),
@@ -43,7 +51,7 @@ class EmailFiltersInput(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    folder: FilterFolder = FolderName.INBOX
+    folder: FilterFolder = FolderSelection.INBOX
     is_read: IsRead = None
     sender: Sender = None
     received_after: ReceivedAfter = None
@@ -52,7 +60,7 @@ class EmailFiltersInput(BaseModel):
 
     def to_filters(self) -> EmailFilters:
         return EmailFilters(
-            folder=self.folder,
+            folders=self.folder.to_folders(),
             is_read=self.is_read,
             sender=self.sender,
             received_after=self.received_after,

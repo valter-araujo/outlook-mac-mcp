@@ -116,6 +116,19 @@ async def test_lists_oldest_first_when_asked() -> None:
     assert await listed_ids(server, {"sort": "oldest"}) == ["old", "new"]
 
 
+async def test_folder_all_merges_every_well_known_folder() -> None:
+    repository = InMemoryMailRepository()
+    repository.add(FolderName.INBOX, make_email("inboxed"))
+    repository.add(FolderName.ARCHIVE, make_email("archived"))
+    server = build_server(mail_only_use_cases(repository))
+
+    page = await call(server, LIST_EMAILS_TOOL, {"folder": "all"})
+
+    assert {item["id"] for item in page["items"]} == {"inboxed", "archived"}
+    assert page["total"] == 2
+    assert page["folder"] == "all"
+
+
 async def test_passes_every_filter_through() -> None:
     server = server_with(
         make_email("hit", days_ago=1, is_read=True, sender="bo@example.com", has_attachments=True),
@@ -152,13 +165,28 @@ async def test_returns_an_empty_exact_page_when_nothing_matches() -> None:
 async def test_counts_everything_by_default() -> None:
     server = server_with(make_email("a"), make_email("b"), make_email("c"))
 
-    assert await call(server, COUNT_EMAILS_TOOL, {}) == {"total": 3}
+    assert await call(server, COUNT_EMAILS_TOOL, {}) == {"total": 3, "folder": "inbox"}
 
 
 async def test_counts_only_what_the_filters_admit() -> None:
     server = server_with(make_email("read", is_read=True), make_email("unread"))
 
-    assert await call(server, COUNT_EMAILS_TOOL, {"is_read": False}) == {"total": 1}
+    assert await call(server, COUNT_EMAILS_TOOL, {"is_read": False}) == {
+        "total": 1,
+        "folder": "inbox",
+    }
+
+
+async def test_count_folder_all_sums_every_well_known_folder() -> None:
+    repository = InMemoryMailRepository()
+    repository.add(FolderName.INBOX, make_email("inboxed"))
+    repository.add(FolderName.ARCHIVE, make_email("archived"))
+    server = build_server(mail_only_use_cases(repository))
+
+    assert await call(server, COUNT_EMAILS_TOOL, {"folder": "all"}) == {
+        "total": 2,
+        "folder": "all",
+    }
 
 
 @pytest.mark.parametrize("tool", [LIST_EMAILS_TOOL, COUNT_EMAILS_TOOL])

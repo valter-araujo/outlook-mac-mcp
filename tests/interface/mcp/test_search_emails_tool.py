@@ -56,7 +56,7 @@ A_LOWER_BOUND = 250
 class LowerBoundMailRepository:
     """A backend that stopped counting, the way Graph does past the search ceiling."""
 
-    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
+    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
         raise NotImplementedError
 
     def get_by_id(self, email_id: str) -> EmailDetail:
@@ -94,7 +94,7 @@ class RecordingMailRepository:
     def __init__(self) -> None:
         self.last_request: SearchEmailsRequest | None = None
 
-    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
+    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
         raise NotImplementedError
 
     def get_by_id(self, email_id: str) -> EmailDetail:
@@ -206,6 +206,18 @@ async def test_searches_the_requested_folder() -> None:
     items = await call_search(server, {"term": "deck", "folder": "archive"})
 
     assert [item["id"] for item in items] == ["archived"]
+
+
+async def test_folder_all_merges_every_well_known_folder() -> None:
+    repository = InMemoryMailRepository()
+    repository.add(FolderName.INBOX, make_email("inboxed", subject="deck"))
+    repository.add(FolderName.ARCHIVE, make_email("archived", subject="deck"))
+    server = build_server(mail_only_use_cases(repository))
+
+    page = await search_page(server, {"term": "deck", "folder": "all"})
+
+    assert {item["id"] for item in page["items"]} == {"inboxed", "archived"}
+    assert page["folder"] == "all"
 
 
 async def test_returns_an_empty_list_when_nothing_matches() -> None:

@@ -37,7 +37,7 @@ class FailingMailRepository:
     def __init__(self, error: Exception) -> None:
         self._error = error
 
-    def list_unread(self, folder: FolderName, limit: int) -> Page[Email]:
+    def list_unread(self, folders: tuple[FolderName, ...], limit: int) -> Page[Email]:
         raise self._error
 
     def get_by_id(self, email_id: str) -> EmailDetail:
@@ -153,6 +153,18 @@ async def test_passes_the_folder_and_limit_through_to_the_use_case() -> None:
     items = await call_tool(server, {"folder": "archive", "limit": 1})
 
     assert [item["id"] for item in items] == ["archived"]
+
+
+async def test_folder_all_merges_every_well_known_folder() -> None:
+    repository = InMemoryMailRepository()
+    repository.add(FolderName.ARCHIVE, make_email("archived"))
+    repository.add(FolderName.INBOX, make_email("inboxed"))
+    server = build_server(mail_only_use_cases(repository))
+
+    page = await call_page(server, {"folder": "all"})
+
+    assert {item["id"] for item in page["items"]} == {"archived", "inboxed"}
+    assert page["folder"] == "all"
 
 
 async def test_returns_an_empty_list_when_nothing_is_unread() -> None:

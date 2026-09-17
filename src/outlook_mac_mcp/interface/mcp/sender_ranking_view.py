@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from outlook_mac_mcp.domain.sender_count import SenderCount
 from outlook_mac_mcp.domain.sender_ranking import SenderRanking
+from outlook_mac_mcp.interface.mcp.email_page_view import FOLDER_DESCRIPTION
 
 
 class SenderCountView(BaseModel):
@@ -28,12 +29,14 @@ class SenderRankingView(BaseModel):
             "total and the ranking covers only the scanned emails."
         )
     )
+    folder: str = Field(description=FOLDER_DESCRIPTION)
 
     @classmethod
-    def from_ranking(cls, ranking: SenderRanking) -> "SenderRankingView":
+    def from_ranking(cls, ranking: SenderRanking, folder: str) -> "SenderRankingView":
         return cls(
             senders=[SenderCountView.from_count(item) for item in ranking.senders],
             scanned=ranking.scanned,
             total=ranking.total,
             coverage_is_complete=ranking.coverage_is_complete,
+            folder=folder,
         )

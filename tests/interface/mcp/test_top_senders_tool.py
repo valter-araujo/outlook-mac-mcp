@@ -84,6 +84,19 @@ async def test_ranks_senders_with_their_names_and_counts() -> None:
     assert ranking["coverage_is_complete"] is True
 
 
+async def test_folder_all_merges_every_well_known_folder() -> None:
+    repository = InMemoryMailRepository()
+    repository.add(FolderName.INBOX, make_email("1", "bo@x.io", name="Bo"))
+    repository.add(FolderName.ARCHIVE, make_email("2", "bo@x.io", name="Bo"))
+    server = build_server(mail_only_use_cases(repository))
+
+    ranking = await call(server, {"folder": "all"})
+
+    assert ranking["senders"] == [{"address": "bo@x.io", "name": "Bo", "count": 2}]
+    assert ranking["total"] == 2
+    assert ranking["folder"] == "all"
+
+
 async def test_applies_the_filters_and_the_limit() -> None:
     server = server_with(
         make_email("1", "old@x.io", days_ago=40),
@@ -103,7 +116,13 @@ async def test_applies_the_filters_and_the_limit() -> None:
 async def test_ranks_nobody_on_an_empty_folder() -> None:
     ranking = await call(server_with(), {})
 
-    assert ranking == {"senders": [], "scanned": 0, "total": 0, "coverage_is_complete": True}
+    assert ranking == {
+        "senders": [],
+        "scanned": 0,
+        "total": 0,
+        "coverage_is_complete": True,
+        "folder": "inbox",
+    }
 
 
 async def test_rejects_a_date_bound_without_an_offset() -> None:

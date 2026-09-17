@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
+from outlook_mac_mcp.interface.mcp.email_page_view import FOLDER_DESCRIPTION
 from outlook_mac_mcp.interface.mcp.email_view import EmailView
 
 
@@ -27,16 +28,19 @@ class EmailSearchPageView(BaseModel):
     next_page_token: str | None = Field(
         description=(
             "Pass this to search_emails' page_token to get the next page of this same "
-            "search. Absent when this is the last page."
+            "search. Absent when this is the last page, or when folder was all -- a "
+            "multi-folder search cannot be continued, only re-run."
         )
     )
+    folder: str = Field(description=FOLDER_DESCRIPTION)
 
     @classmethod
-    def from_page(cls, page: EmailSearchPage) -> "EmailSearchPageView":
+    def from_page(cls, page: EmailSearchPage, folder: str) -> "EmailSearchPageView":
         return cls(
             items=[EmailView.from_email(email) for email in page.items],
             returned=len(page.items),
             total=page.total,
             total_is_exact=page.total_is_exact,
             next_page_token=page.next_page_token,
+            folder=folder,
         )

@@ -101,6 +101,19 @@ async def test_an_email_with_no_known_size_is_skipped_not_ranked() -> None:
     assert ranking["total"] == 2
 
 
+async def test_folder_all_merges_every_well_known_folder() -> None:
+    repository = InMemoryMailRepository()
+    repository.add(FolderName.INBOX, make_email("inboxed"), size_bytes=10)
+    repository.add(FolderName.ARCHIVE, make_email("archived", days_ago=1), size_bytes=20)
+    server = build_server(mail_only_use_cases(repository))
+
+    ranking = await call(server, {"folder": "all"})
+
+    assert [item["id"] for item in ranking["items"]] == ["archived", "inboxed"]
+    assert ranking["total"] == 2
+    assert ranking["folder"] == "all"
+
+
 async def test_applies_the_filters_and_the_limit() -> None:
     server = server_with(
         (make_email("old", days_ago=40), 999_999),
@@ -126,6 +139,7 @@ async def test_ranks_nothing_on_an_empty_folder() -> None:
         "skipped": 0,
         "total": 0,
         "coverage_is_complete": True,
+        "folder": "inbox",
     }
 
 

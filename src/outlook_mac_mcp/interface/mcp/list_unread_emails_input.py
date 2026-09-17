@@ -4,9 +4,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from outlook_mac_mcp.application.limits import DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmailsRequest
-from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.folder_selection import FolderSelection
 
-Folder = Annotated[FolderName, Field(description="Mailbox folder to read.")]
+Folder = Annotated[
+    FolderSelection,
+    Field(
+        description=(
+            "Mailbox folder to read, or all to search every well-known folder and merge "
+            "the results."
+        )
+    ),
+]
 Limit = Annotated[
     int,
     Field(ge=MIN_LIMIT, le=MAX_LIMIT, description="Maximum number of emails to return."),
@@ -22,8 +30,8 @@ class ListUnreadEmailsInput(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    folder: Folder = FolderName.INBOX
+    folder: Folder = FolderSelection.INBOX
     limit: Limit = DEFAULT_LIMIT
 
     def to_request(self) -> ListUnreadEmailsRequest:
-        return ListUnreadEmailsRequest(folder=self.folder, limit=self.limit)
+        return ListUnreadEmailsRequest(folders=self.folder.to_folders(), limit=self.limit)

@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from outlook_mac_mcp.domain.email_size import EmailSize
 from outlook_mac_mcp.domain.email_size_ranking import EmailSizeRanking
+from outlook_mac_mcp.interface.mcp.email_page_view import FOLDER_DESCRIPTION
 
 
 class EmailSizeView(BaseModel):
@@ -48,13 +49,15 @@ class EmailSizeRankingView(BaseModel):
             "total and the ranking covers only the scanned emails."
         )
     )
+    folder: str = Field(description=FOLDER_DESCRIPTION)
 
     @classmethod
-    def from_ranking(cls, ranking: EmailSizeRanking) -> "EmailSizeRankingView":
+    def from_ranking(cls, ranking: EmailSizeRanking, folder: str) -> "EmailSizeRankingView":
         return cls(
             items=[EmailSizeView.from_email_size(item) for item in ranking.items],
             scanned=ranking.scanned,
             skipped=ranking.skipped,
             total=ranking.total,
             coverage_is_complete=ranking.coverage_is_complete,
+            folder=folder,
         )

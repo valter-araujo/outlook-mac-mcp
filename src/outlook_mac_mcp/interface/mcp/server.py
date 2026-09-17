@@ -6,13 +6,14 @@ from outlook_mac_mcp.application.limits import DEFAULT_LIMIT
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.domain.errors import OutlookMcpError
-from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.folder_selection import FolderSelection
 from outlook_mac_mcp.domain.search_scope import SearchScope
 from outlook_mac_mcp.interface.mcp.calendar_tools import register_calendar_tools
 from outlook_mac_mcp.interface.mcp.calendar_write_tools import register_calendar_write_tools
 from outlook_mac_mcp.interface.mcp.email_detail_view import EmailDetailView
 from outlook_mac_mcp.interface.mcp.email_page_view import EmailPageView
 from outlook_mac_mcp.interface.mcp.email_search_page_view import EmailSearchPageView
+from outlook_mac_mcp.interface.mcp.folder_scope_guidance import folder_scope_guidance
 from outlook_mac_mcp.interface.mcp.get_email_input import EmailId, GetEmailInput
 from outlook_mac_mcp.interface.mcp.list_folders_tool import register_list_folders_tool
 from outlook_mac_mcp.interface.mcp.list_largest_emails_tool import (
@@ -50,6 +51,8 @@ LIST_UNREAD_EMAILS_DESCRIPTION = (
     "it cannot tell how many emails the folder holds, how far back it goes, or when the "
     "earliest email arrived. For those use list_emails with sort=oldest, or count_emails. "
     + totals_guidance("a higher limit, or a folder with less unread mail")
+    + " "
+    + folder_scope_guidance()
 )
 SEARCH_EMAILS_TOOL = "search_emails"
 SEARCH_EMAILS_DESCRIPTION = (
@@ -66,8 +69,13 @@ SEARCH_EMAILS_DESCRIPTION = (
     "folder goes from them. To answer how many or how far back, use count_emails or "
     "list_emails with sort=oldest, which filter by date and count exactly. "
     "To see more results from this same search, pass the returned next_page_token as "
-    "page_token; omitting page_token starts a new search from the first page. "
+    "page_token; omitting page_token starts a new search from the first page. When "
+    "folder is all, results from each folder are grouped together, not globally "
+    "re-ranked by relevance, and next_page_token is never returned -- re-run the search "
+    "instead of paging it. "
     + totals_guidance("a more specific term, the subject or sender scope, or another folder")
+    + " "
+    + folder_scope_guidance()
 )
 GET_EMAIL_TOOL = "get_email"
 GET_EMAIL_DESCRIPTION = (
@@ -98,7 +106,7 @@ def build_server(use_cases: UseCases) -> MCPServer:
 def _register_list_unread_emails(server: MCPServer, use_case: ListUnreadEmails) -> None:
     @server.tool(name=LIST_UNREAD_EMAILS_TOOL, description=LIST_UNREAD_EMAILS_DESCRIPTION)
     async def list_unread_emails(
-        folder: Folder = FolderName.INBOX,
+        folder: Folder = FolderSelection.INBOX,
         limit: Limit = DEFAULT_LIMIT,
     ) -> EmailPageView:
         try:
@@ -114,7 +122,7 @@ def _translate(use_case: ListUnreadEmails, model: ListUnreadEmailsInput) -> Emai
     with observed_tool_call(LIST_UNREAD_EMAILS_TOOL) as outcome:
         page = use_case.execute(model.to_request())
         outcome.item_count = len(page.items)
-        return EmailPageView.from_page(page)
+        return EmailPageView.from_page(page, folder=model.folder.value)
 
 
 def _register_get_email(server: MCPServer, use_case: GetEmail) -> None:
@@ -137,7 +145,7 @@ def _register_search_emails(server: MCPServer, use_case: SearchEmails) -> None:
     @server.tool(name=SEARCH_EMAILS_TOOL, description=SEARCH_EMAILS_DESCRIPTION)
     async def search_emails(
         term: Term,
-        folder: SearchFolder = FolderName.INBOX,
+        folder: SearchFolder = FolderSelection.INBOX,
         scope: Scope = SearchScope.ANY,
         limit: SearchLimit = DEFAULT_LIMIT,
         page_token: PageToken | None = None,
@@ -157,4 +165,4 @@ def _translate_search(use_case: SearchEmails, model: SearchEmailsInput) -> Email
     with observed_tool_call(SEARCH_EMAILS_TOOL) as outcome:
         page = use_case.execute(model.to_request())
         outcome.item_count = len(page.items)
-        return EmailSearchPageView.from_page(page)
+        return EmailSearchPageView.from_page(page, folder=model.folder.value)

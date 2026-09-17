@@ -8,7 +8,7 @@ from outlook_mac_mcp.application.search_emails_request import (
     MIN_TERM_LENGTH,
     SearchEmailsRequest,
 )
-from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.folder_selection import FolderSelection
 from outlook_mac_mcp.domain.search_scope import SearchScope
 
 # Mirrors UNSUPPORTED_TERM_CHARACTERS so the refusal appears in the tool schema rather
@@ -28,7 +28,15 @@ Term = Annotated[
         ),
     ),
 ]
-SearchFolder = Annotated[FolderName, Field(description="Mailbox folder to search.")]
+SearchFolder = Annotated[
+    FolderSelection,
+    Field(
+        description=(
+            "Mailbox folder to search, or all to search every well-known folder and "
+            "merge the results."
+        )
+    ),
+]
 Scope = Annotated[
     SearchScope,
     Field(
@@ -61,7 +69,7 @@ class SearchEmailsInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     term: Term
-    folder: SearchFolder = FolderName.INBOX
+    folder: SearchFolder = FolderSelection.INBOX
     scope: Scope = SearchScope.ANY
     limit: SearchLimit = DEFAULT_LIMIT
     page_token: PageToken | None = None
@@ -69,7 +77,7 @@ class SearchEmailsInput(BaseModel):
     def to_request(self) -> SearchEmailsRequest:
         return SearchEmailsRequest(
             term=self.term,
-            folder=self.folder,
+            folders=self.folder.to_folders(),
             scope=self.scope,
             limit=self.limit,
             page_token=self.page_token,

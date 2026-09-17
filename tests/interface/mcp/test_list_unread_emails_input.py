@@ -4,25 +4,32 @@ from pydantic import ValidationError
 from outlook_mac_mcp.application.limits import DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmailsRequest
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.folder_selection import FolderSelection
 from outlook_mac_mcp.interface.mcp.list_unread_emails_input import ListUnreadEmailsInput
 
 
 def test_defaults_to_the_inbox_and_the_use_case_default_limit() -> None:
     request = ListUnreadEmailsInput().to_request()
 
-    assert request == ListUnreadEmailsRequest(folder=FolderName.INBOX, limit=DEFAULT_LIMIT)
+    assert request == ListUnreadEmailsRequest(folders=(FolderName.INBOX,), limit=DEFAULT_LIMIT)
 
 
 def test_translates_the_requested_folder_and_limit() -> None:
-    model = ListUnreadEmailsInput(folder=FolderName.ARCHIVE, limit=5)
+    model = ListUnreadEmailsInput(folder=FolderSelection.ARCHIVE, limit=5)
 
-    assert model.to_request() == ListUnreadEmailsRequest(folder=FolderName.ARCHIVE, limit=5)
+    assert model.to_request() == ListUnreadEmailsRequest(folders=(FolderName.ARCHIVE,), limit=5)
+
+
+def test_translates_all_into_every_well_known_folder() -> None:
+    model = ListUnreadEmailsInput(folder=FolderSelection.ALL)
+
+    assert set(model.to_request().folders) == set(FolderName)
 
 
 def test_accepts_the_folder_as_its_graph_name() -> None:
     model = ListUnreadEmailsInput.model_validate({"folder": "junkemail"})
 
-    assert model.to_request().folder is FolderName.JUNK
+    assert model.to_request().folders == (FolderName.JUNK,)
 
 
 @pytest.mark.parametrize("limit", [MIN_LIMIT, MAX_LIMIT])
