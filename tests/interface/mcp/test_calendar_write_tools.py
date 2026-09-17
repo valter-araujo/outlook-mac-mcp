@@ -6,6 +6,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import CallToolResult
 
 from outlook_mac_mcp.domain.new_event import MAX_ATTENDEES, MAX_BODY_LENGTH, MAX_SUBJECT_LENGTH
+from outlook_mac_mcp.domain.show_as import ShowAs
 from outlook_mac_mcp.interface.mcp.calendar_write_tools import (
     CREATE_EVENT_TOOL,
     PREVIEW_EVENT_TOOL,
@@ -124,6 +125,58 @@ async def test_rejects_a_body_beyond_the_maximum_length() -> None:
 
     with pytest.raises(ToolError):
         await call(server, PREVIEW_EVENT_TOOL, A_PREVIEW | {"body": "a" * (MAX_BODY_LENGTH + 1)})
+
+
+async def test_preview_includes_reminder_sensitivity_and_show_as_in_the_summary() -> None:
+    server, _ = server_with_writes()
+
+    draft = await call(
+        server,
+        PREVIEW_EVENT_TOOL,
+        A_PREVIEW
+        | {"reminder_minutes_before_start": 30, "sensitivity": "private", "show_as": "tentative"},
+    )
+
+    assert "reminder: 30 min before" in draft["summary"]
+    assert "sensitivity: private" in draft["summary"]
+    assert "show as: tentative" in draft["summary"]
+
+
+async def test_create_carries_reminder_sensitivity_and_show_as_through() -> None:
+    server, writer = server_with_writes()
+    token = (
+        await call(
+            server,
+            PREVIEW_EVENT_TOOL,
+            A_PREVIEW | {"reminder_minutes_before_start": 30, "show_as": "busy"},
+        )
+    )["token"]
+
+    await call(server, CREATE_EVENT_TOOL, {"token": token})
+
+    assert writer.created[0].reminder_minutes_before_start == 30
+    assert writer.created[0].show_as is ShowAs.BUSY
+
+
+async def test_rejects_a_negative_reminder() -> None:
+    server, _ = server_with_writes()
+
+    with pytest.raises(ToolError):
+        await call(server, PREVIEW_EVENT_TOOL, A_PREVIEW | {"reminder_minutes_before_start": -1})
+
+
+async def test_rejects_an_unknown_sensitivity() -> None:
+    server, _ = server_with_writes()
+
+    with pytest.raises(ToolError):
+        await call(server, PREVIEW_EVENT_TOOL, A_PREVIEW | {"sensitivity": "top-secret"})
+
+
+async def test_rejects_an_unknown_show_as() -> None:
+    server, _ = server_with_writes()
+
+    with pytest.raises(ToolError):
+        await call(server, PREVIEW_EVENT_TOOL, A_PREVIEW | {"show_as": "somewhere"})
 
 
 async def test_a_token_works_exactly_once() -> None:

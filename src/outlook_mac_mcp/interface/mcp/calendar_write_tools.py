@@ -14,9 +14,12 @@ from outlook_mac_mcp.interface.mcp.preview_event_input import (
     Attendees,
     Body,
     End,
+    EventSensitivity,
+    EventShowAs,
     IsAllDay,
     Location,
     PreviewEventInput,
+    ReminderMinutesBeforeStart,
     Start,
     Subject,
 )
@@ -57,6 +60,9 @@ def _register_preview_event(server: MCPServer, use_case: PreviewEvent) -> None:
         location: Location = "",
         body: Body = "",
         attendees: Attendees = (),
+        reminder_minutes_before_start: ReminderMinutesBeforeStart | None = None,
+        sensitivity: EventSensitivity | None = None,
+        show_as: EventShowAs | None = None,
     ) -> EventDraftView:
         model = PreviewEventInput(
             subject=subject,
@@ -66,6 +72,9 @@ def _register_preview_event(server: MCPServer, use_case: PreviewEvent) -> None:
             location=location,
             body=body,
             attendees=attendees,
+            reminder_minutes_before_start=reminder_minutes_before_start,
+            sensitivity=sensitivity,
+            show_as=show_as,
         )
         try:
             return _translate_preview(use_case, model)

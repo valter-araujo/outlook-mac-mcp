@@ -13,7 +13,10 @@ from outlook_mac_mcp.interface.mcp.update_event_input import (
     Body,
     End,
     EventId,
+    EventSensitivity,
+    EventShowAs,
     Location,
+    ReminderMinutesBeforeStart,
     Start,
     Subject,
     UpdateEventInput,
@@ -56,6 +59,9 @@ def _register_preview_event_update(server: MCPServer, use_case: PreviewEventUpda
         location: Location | None = None,
         body: Body | None = None,
         attendees: Attendees | None = None,
+        reminder_minutes_before_start: ReminderMinutesBeforeStart | None = None,
+        sensitivity: EventSensitivity | None = None,
+        show_as: EventShowAs | None = None,
     ) -> EventUpdateDraftView:
         model = UpdateEventInput(
             event_id=event_id,
@@ -65,6 +71,9 @@ def _register_preview_event_update(server: MCPServer, use_case: PreviewEventUpda
             location=location,
             body=body,
             attendees=attendees,
+            reminder_minutes_before_start=reminder_minutes_before_start,
+            sensitivity=sensitivity,
+            show_as=show_as,
         )
         try:
             return _translate_preview(use_case, model)

@@ -7,9 +7,12 @@ from outlook_mac_mcp.domain.new_event import (
     MAX_ATTENDEES,
     MAX_BODY_LENGTH,
     MAX_SUBJECT_LENGTH,
+    MIN_REMINDER_MINUTES_BEFORE_START,
     MIN_SUBJECT_LENGTH,
     NewEvent,
 )
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 
 # Deliberately loose: one @, no whitespace, a dot in the domain. Graph is the authority
 # on deliverability; this only keeps obvious non-addresses out of the payload.
@@ -58,6 +61,24 @@ Attendees = Annotated[
     tuple[Attendee, ...],
     Field(max_length=MAX_ATTENDEES, description="Email addresses to invite, up to 50."),
 ]
+ReminderMinutesBeforeStart = Annotated[
+    int,
+    Field(
+        ge=MIN_REMINDER_MINUTES_BEFORE_START,
+        description="Minutes before start to show a reminder. Omit for Graph's own default.",
+    ),
+]
+EventSensitivity = Annotated[
+    Sensitivity,
+    Field(description="Privacy classification: normal, personal, private or confidential."),
+]
+EventShowAs = Annotated[
+    ShowAs,
+    Field(
+        description="Free/busy status shown to others: free, tentative, busy, oof (out of "
+        "office) or workingElsewhere."
+    ),
+]
 
 
 class PreviewEventInput(BaseModel):
@@ -72,6 +93,9 @@ class PreviewEventInput(BaseModel):
     location: Location = ""
     body: Body = ""
     attendees: Attendees = ()
+    reminder_minutes_before_start: ReminderMinutesBeforeStart | None = None
+    sensitivity: EventSensitivity | None = None
+    show_as: EventShowAs | None = None
 
     def to_new_event(self) -> NewEvent:
         return NewEvent(
@@ -82,4 +106,7 @@ class PreviewEventInput(BaseModel):
             location=self.location,
             body=self.body,
             attendees=tuple(EmailAddress(address=address) for address in self.attendees),
+            reminder_minutes_before_start=self.reminder_minutes_before_start,
+            sensitivity=self.sensitivity,
+            show_as=self.show_as,
         )

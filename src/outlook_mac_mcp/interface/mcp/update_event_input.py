@@ -8,8 +8,11 @@ from outlook_mac_mcp.domain.new_event import (
     MAX_ATTENDEES,
     MAX_BODY_LENGTH,
     MAX_SUBJECT_LENGTH,
+    MIN_REMINDER_MINUTES_BEFORE_START,
     MIN_SUBJECT_LENGTH,
 )
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 from outlook_mac_mcp.interface.mcp.preview_event_input import (
     EMAIL_PATTERN,
     MAX_ADDRESS_LENGTH,
@@ -73,6 +76,27 @@ Attendees = Annotated[
         "clears it; omit to leave it unchanged.",
     ),
 ]
+ReminderMinutesBeforeStart = Annotated[
+    int,
+    Field(
+        ge=MIN_REMINDER_MINUTES_BEFORE_START,
+        description="New reminder lead time in minutes. Omit to leave it unchanged.",
+    ),
+]
+EventSensitivity = Annotated[
+    Sensitivity,
+    Field(
+        description="New privacy classification: normal, personal, private or confidential. "
+        "Omit to leave it unchanged."
+    ),
+]
+EventShowAs = Annotated[
+    ShowAs,
+    Field(
+        description="New free/busy status: free, tentative, busy, oof (out of office) or "
+        "workingElsewhere. Omit to leave it unchanged."
+    ),
+]
 
 
 class UpdateEventInput(BaseModel):
@@ -92,6 +116,9 @@ class UpdateEventInput(BaseModel):
     location: Location | None = None
     body: Body | None = None
     attendees: Attendees | None = None
+    reminder_minutes_before_start: ReminderMinutesBeforeStart | None = None
+    sensitivity: EventSensitivity | None = None
+    show_as: EventShowAs | None = None
 
     def to_changes(self) -> EventChanges:
         return EventChanges(
@@ -106,4 +133,7 @@ class UpdateEventInput(BaseModel):
                 if self.attendees is not None
                 else None
             ),
+            reminder_minutes_before_start=self.reminder_minutes_before_start,
+            sensitivity=self.sensitivity,
+            show_as=self.show_as,
         )

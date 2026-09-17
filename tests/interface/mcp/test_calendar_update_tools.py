@@ -9,6 +9,8 @@ from mcp_types import CallToolResult
 
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.event import Event
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 from outlook_mac_mcp.interface.mcp.calendar_update_tools import (
     PREVIEW_EVENT_UPDATE_TOOL,
     UPDATE_EVENT_TOOL,
@@ -126,6 +128,47 @@ async def test_refuses_a_token_it_never_issued() -> None:
     assert writer.updated == []
 
 
+async def test_preview_shows_a_changed_reminder_sensitivity_and_show_as() -> None:
+    server, _ = server_with_writes()
+
+    draft = await call(
+        server,
+        PREVIEW_EVENT_UPDATE_TOOL,
+        {
+            "event_id": CURRENT.id,
+            "reminder_minutes_before_start": 10,
+            "sensitivity": "confidential",
+            "show_as": "oof",
+        },
+    )
+
+    assert "reminder: (none) -> 10 min before" in draft["summary"]
+    assert "sensitivity: (none) -> confidential" in draft["summary"]
+    assert "show as: (none) -> oof" in draft["summary"]
+
+
+async def test_update_applies_a_changed_reminder_sensitivity_and_show_as() -> None:
+    server, writer = server_with_writes()
+    token = (
+        await call(
+            server,
+            PREVIEW_EVENT_UPDATE_TOOL,
+            {
+                "event_id": CURRENT.id,
+                "reminder_minutes_before_start": 10,
+                "sensitivity": "confidential",
+                "show_as": "oof",
+            },
+        )
+    )["token"]
+
+    await call(server, UPDATE_EVENT_TOOL, {"token": token})
+
+    assert writer.updated[0].reminder_minutes_before_start == 10
+    assert writer.updated[0].sensitivity is Sensitivity.CONFIDENTIAL
+    assert writer.updated[0].show_as is ShowAs.OOF
+
+
 async def test_refuses_an_unknown_event_id_at_preview() -> None:
     server, _ = server_with_writes()
 
@@ -151,6 +194,9 @@ async def test_preview_takes_no_fields_beyond_event_id_and_the_updatable_ones() 
         "location",
         "body",
         "attendees",
+        "reminder_minutes_before_start",
+        "sensitivity",
+        "show_as",
     }
 
 

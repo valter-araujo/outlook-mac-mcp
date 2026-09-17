@@ -33,6 +33,9 @@ class InMemoryCalendarWriter:
             organizer=ORGANIZER,
             body=new_event.body,
             attendees=new_event.attendees,
+            reminder_minutes_before_start=new_event.reminder_minutes_before_start,
+            sensitivity=new_event.sensitivity,
+            show_as=new_event.show_as,
         )
         self._events[event.id] = event
         return event
@@ -56,6 +59,15 @@ class InMemoryCalendarWriter:
             organizer=current.organizer,
             body=changes.body if changes.body is not None else current.body,
             attendees=changes.attendees if changes.attendees is not None else current.attendees,
+            reminder_minutes_before_start=(
+                changes.reminder_minutes_before_start
+                if changes.reminder_minutes_before_start is not None
+                else current.reminder_minutes_before_start
+            ),
+            sensitivity=(
+                changes.sensitivity if changes.sensitivity is not None else current.sensitivity
+            ),
+            show_as=changes.show_as if changes.show_as is not None else current.show_as,
         )
         self._events[updated.id] = updated
         return updated
