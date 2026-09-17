@@ -100,7 +100,8 @@ above. Search quoting is additionally covered by a live positive-control check, 
 - **v1 (read-only):** unread emails, emails by folder, search by term, read one
   email by id (body included), list folders, today's / upcoming events, contact
   search.
-- **v2:** create event, mark as read — behind a config flag, off by default.
+- **v2:** create, update and delete calendar events; mark as read — behind a
+  config flag, off by default.
 - **v3:** send email — behind a config flag, off by default, with explicit
   per-call confirmation.
 
