@@ -103,9 +103,9 @@ above. Search quoting is additionally covered by a live positive-control check, 
 
 ## Scope
 
-- **v1 (read-only):** unread emails, emails by folder, search by term, read one
-  email by id (body included), list folders, today's / upcoming events, contact
-  search.
+- **v1 (read-only):** unread emails, emails by folder (well-known or custom, by
+  full path), search by term, read one email by id (body included), list
+  folders, today's / upcoming events, contact search.
 - **v2:** create and update calendar events — behind a config flag, off by
   default; delete calendar events — behind a second flag, off by default even
   when the first one is on; mark as read — not yet built.
@@ -146,12 +146,24 @@ when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 A custom folder is any folder the user created in Outlook — not one of the five
 well-known folders (inbox, archive, junk email, sent items, drafts). `search_emails`,
 `list_emails`, `count_emails`, `top_senders`, `list_largest_emails` and
-`list_unread_emails` all accept one as their `folder` argument, addressed by its full
-path exactly as `list_folders` reports it under `custom` (folder names repeat across a
-mailbox; the full path is what disambiguates them). Run `list_folders` first to
-discover the exact paths available, then pass that string as `folder`. Resolving a
-custom path costs one extra walk of the mailbox's folder tree per call (the same walk
-`list_folders` does for its `custom` list) — nothing is cached between calls.
+`list_unread_emails` all accept one of the following as their `folder` argument:
+
+1. **A well-known folder by name, matched case-insensitively** — `folder="inbox"`,
+   `folder="INBOX"` and `folder="Archive"` all resolve the same way.
+2. **`all`** — every well-known folder, merged. Custom folders are never included,
+   however many exist: `folder="all"`.
+3. **A custom folder by its full path**, exactly as `list_folders` reports it under
+   `custom` (folder names repeat across a mailbox; the full path is what disambiguates
+   them): `folder="Entrevistas/Work/AWS"`.
+4. **A top-level custom folder**, which has no parent to qualify it:
+   `folder="Seguros"`.
+
+Run `list_folders` first to discover the exact paths available, then pass that string
+as `folder`. Resolving a custom path costs one extra walk of the mailbox's folder tree
+per call (the same walk `list_folders` does for its `custom` list) — nothing is cached
+between calls.
+
+`folder` combines with every other filter a tool already accepts:
 
 ```
 # Well-known folder (unchanged)
@@ -165,7 +177,32 @@ list_emails(folder="Entrevistas/Work/AWS", sort="oldest")
 
 # A top-level custom folder
 top_senders(folder="Seguros")
+
+# A custom folder combined with a date range
+list_emails(
+    folder="Entrevistas/Work/AWS",
+    received_after="2026-01-01T00:00:00+00:00",
+    sort="oldest",
+)
+
+# A custom folder combined with an exact sender filter
+count_emails(folder="Entrevistas/Work/AWS", sender="ana@example.com")
+
+# A custom folder combined with a search term
+search_emails(term="offer letter", folder="Entrevistas/Work/AWS")
 ```
+
+**Typos are rejected, not silently misrouted.** A `folder` value close to a well-known
+name — one or two characters off, e.g. `folder="inbx"` — raises an error naming the
+value it was likely meant to be (`"inbx" is not a recognized folder -- did you mean
+'inbox'?`) instead of walking the whole mailbox tree looking for a custom folder
+literally called `inbx`.
+
+**Known limitation:** this typo check is a coarse edit-distance heuristic, not a
+dictionary lookup. A genuine custom folder whose name happens to be one edit away from
+a well-known one — for example a folder literally named `Archives` — is
+indistinguishable from a typo of `archive` and gets rejected the same way. Renaming the
+folder is the only workaround today.
 
 ## Security model
 
