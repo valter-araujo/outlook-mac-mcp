@@ -1,0 +1,10 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.valter-araujo/outlook-mac-mcp",
+  "description": "MCP server for Outlook personal accounts (Hotmail/Outlook.com) via Microsoft Graph API",
+  "repository": {
+    "url": "https://github.com/valter-araujo/outlook-mac-mcp",
+    "source": "github"
+  },
+  "version": "0.7.0"
+}
