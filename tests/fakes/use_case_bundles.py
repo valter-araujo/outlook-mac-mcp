@@ -4,8 +4,11 @@ from zoneinfo import ZoneInfo
 from outlook_mac_mcp.application.clock import Clock
 from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
+from outlook_mac_mcp.application.delete_event import DeleteEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
+from outlook_mac_mcp.application.event_deletion_draft import EventDeletionDraft
 from outlook_mac_mcp.application.event_draft import EventDraft
+from outlook_mac_mcp.application.event_update_draft import EventUpdateDraft
 from outlook_mac_mcp.application.get_email import GetEmail
 from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_folders import ListFolders
@@ -19,9 +22,12 @@ from outlook_mac_mcp.application.ports.contact_repository import ContactReposito
 from outlook_mac_mcp.application.ports.mail_folder_repository import MailFolderRepository
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.preview_event import PreviewEvent
+from outlook_mac_mcp.application.preview_event_deletion import PreviewEventDeletion
+from outlook_mac_mcp.application.preview_event_update import PreviewEventUpdate
 from outlook_mac_mcp.application.search_contacts import SearchContacts
 from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.application.top_senders import TopSenders
+from outlook_mac_mcp.application.update_event import UpdateEvent
 from outlook_mac_mcp.interface.mcp.calendar_write_use_cases import CalendarWriteUseCases
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 from tests.fakes.fixed_clock import FixedClock
@@ -44,10 +50,19 @@ def calendar_only_use_cases(repository: CalendarRepository, clock: Clock) -> Use
 
 
 def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
-    """A bundle with the write pair wired to `writer` over a fresh draft store."""
-    drafts: DraftStore[EventDraft] = DraftStore()
+    """A bundle with all three write pairs wired to `writer`, each over its own fresh
+    draft store.
+    """
+    create_drafts: DraftStore[EventDraft] = DraftStore()
+    update_drafts: DraftStore[EventUpdateDraft] = DraftStore()
+    deletion_drafts: DraftStore[EventDeletionDraft] = DraftStore()
     write = CalendarWriteUseCases(
-        preview_event=PreviewEvent(drafts), create_event=CreateEvent(drafts, writer)
+        preview_event=PreviewEvent(create_drafts),
+        create_event=CreateEvent(create_drafts, writer),
+        preview_event_update=PreviewEventUpdate(writer, update_drafts),
+        update_event=UpdateEvent(update_drafts, writer),
+        preview_event_deletion=PreviewEventDeletion(writer, deletion_drafts),
+        delete_event=DeleteEvent(deletion_drafts, writer),
     )
     bundle = _bundle(InMemoryMailRepository(), InMemoryCalendarRepository(), FixedClock(FROZEN_NOW))
     return UseCases(

@@ -67,9 +67,10 @@ def test_deletes_the_drafted_event() -> None:
     writer.seed(CURRENT)
     token = add_draft(store, CURRENT.id, "summary")
 
-    DeleteEvent(store, writer).execute(token)
+    deleted_id = DeleteEvent(store, writer).execute(token)
 
     assert writer.deleted == [CURRENT.id]
+    assert deleted_id == CURRENT.id
 
 
 def test_a_token_deletes_at_most_once() -> None:

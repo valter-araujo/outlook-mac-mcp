@@ -18,6 +18,7 @@ class DeleteEvent:
         self._draft_store = draft_store
         self._calendar_writer = calendar_writer
 
-    def execute(self, token: str) -> None:
+    def execute(self, token: str) -> str:
         draft = self._draft_store.take(token)
         self._calendar_writer.delete(draft.event_id)
+        return draft.event_id
