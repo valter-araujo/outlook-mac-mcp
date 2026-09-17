@@ -28,6 +28,11 @@ class GraphClient:
     Every request is pinned to graph.microsoft.com and redirects are never followed, so a
     redirect or a caller passing an absolute URL cannot replay the bearer token to another
     host. The token is attached only after the target host has been verified.
+
+    No token passthrough: `self._token_provider` is fixed at construction, one instance
+    per process, and no request parameter can substitute a different token. See
+    CLAUDE.md's Security section for why that's a non-issue on today's local-stdio
+    transport, and what a remote-transport port would need to revisit.
     """
 
     def __init__(

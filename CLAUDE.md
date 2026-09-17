@@ -43,6 +43,16 @@ therefore unsupported by the official add-in and the Microsoft 365 connector.
   commit messages, including in a live check's recorded results. Use `example.com`
   addresses, invented names, and generic descriptions ("a term matching several
   emails", "the folder's earliest email") instead. This repository is public.
+- No token passthrough: one `GraphClient` is built once at startup, wrapping the
+  server's own device-code sign-in, and every request attaches that one token from
+  `AccessTokenProvider.get_access_token()` — never from a tool's arguments or a
+  caller-supplied header. This holds today because the transport is local stdio: the
+  only caller is the one MCP client the process is talking to, and there is exactly one
+  delegated user per process. **A port to a remote transport (HTTP/SSE, a shared
+  gateway serving multiple callers) must re-examine this.** Relaying or accepting a
+  caller-supplied token then becomes a real risk (confused-deputy / token passthrough),
+  not a hypothetical one, and this single-token-per-process assumption is exactly what
+  would need to change first.
 
 ## Architecture (Clean Architecture, no overkill)
 - `domain/`: entities (Email, Event, Contact) as frozen dataclasses, value objects, rules.
