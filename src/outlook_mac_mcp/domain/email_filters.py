@@ -4,6 +4,7 @@ from datetime import datetime
 
 from outlook_mac_mcp.domain.errors import InvalidRequestError
 from outlook_mac_mcp.domain.folder_name import FolderName
+from outlook_mac_mcp.domain.folder_selection import ensure_well_formed_folders
 
 # One @, no whitespace, a dot in the domain, and no single quote: the quote is the OData
 # string delimiter, and refusing it is simpler and safer than escaping it.
@@ -17,9 +18,13 @@ class EmailFilters:
 
     `received_after` is inclusive and `received_before` exclusive, so consecutive ranges
     neither overlap nor leave a gap. The sender is matched exactly on the address.
+
+    `folders` holds more than one well-known folder only for the `all` selection: the
+    adapter runs the same query against each and merges the results, never splitting a
+    single caller-named folder into more than one.
     """
 
-    folder: FolderName = FolderName.INBOX
+    folders: tuple[FolderName, ...] = (FolderName.INBOX,)
     is_read: bool | None = None
     sender: str | None = None
     received_after: datetime | None = None
@@ -27,6 +32,7 @@ class EmailFilters:
     has_attachments: bool | None = None
 
     def __post_init__(self) -> None:
+        ensure_well_formed_folders(self.folders)
         if self.sender is not None:
             _ensure_sender_is_an_address(self.sender)
         for bound in (self.received_after, self.received_before):

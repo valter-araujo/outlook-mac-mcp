@@ -12,8 +12,24 @@ A_MOMENT = datetime(2026, 9, 1, tzinfo=UTC)
 def test_defaults_to_the_inbox_with_nothing_else_restricted() -> None:
     filters = EmailFilters()
 
-    assert filters.folder is FolderName.INBOX
+    assert filters.folders == (FolderName.INBOX,)
     assert filters.is_empty()
+
+
+def test_rejects_an_empty_folders_tuple() -> None:
+    with pytest.raises(InvalidRequestError):
+        EmailFilters(folders=())
+
+
+def test_rejects_a_repeated_folder() -> None:
+    with pytest.raises(InvalidRequestError):
+        EmailFilters(folders=(FolderName.INBOX, FolderName.INBOX))
+
+
+def test_accepts_every_well_known_folder_at_once() -> None:
+    filters = EmailFilters(folders=tuple(FolderName))
+
+    assert set(filters.folders) == set(FolderName)
 
 
 def test_is_not_empty_once_any_restriction_is_set() -> None:
