@@ -58,4 +58,4 @@ def _translate(use_case: ListLargestEmails, model: ListLargestEmailsInput) -> Em
     with observed_tool_call(LIST_LARGEST_EMAILS_TOOL) as outcome:
         ranking = use_case.execute(model.to_request())
         outcome.item_count = len(ranking.items)
-        return EmailSizeRankingView.from_ranking(ranking, folder=model.folder.value)
+        return EmailSizeRankingView.from_ranking(ranking, folder=model.folder.describe_folders())

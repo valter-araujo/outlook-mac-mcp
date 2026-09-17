@@ -217,7 +217,7 @@ async def test_folder_all_merges_every_well_known_folder() -> None:
     page = await search_page(server, {"term": "deck", "folder": "all"})
 
     assert {item["id"] for item in page["items"]} == {"inboxed", "archived"}
-    assert page["folder"] == "all"
+    assert page["folder"] == "inbox, archive, junkemail, sentitems, drafts"
 
 
 async def test_returns_an_empty_list_when_nothing_matches() -> None:

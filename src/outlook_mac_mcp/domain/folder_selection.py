@@ -23,6 +23,14 @@ class FolderSelection(StrEnum):
             return tuple(FolderName)
         return (FolderName(self.value),)
 
+    def describe_folders(self) -> str:
+        """Every folder this selection actually covers, as a readable list -- not just
+        the selector itself. Two `all` results stay comparable at a glance, including if
+        the set of well-known folders ever changes, without having to read the code to
+        know what `all` meant at the time.
+        """
+        return ", ".join(folder.value for folder in self.to_folders())
+
 
 def ensure_well_formed_folders(folders: tuple[FolderName, ...]) -> None:
     """Every mail request that fans out over folders shares this one check, so a bad

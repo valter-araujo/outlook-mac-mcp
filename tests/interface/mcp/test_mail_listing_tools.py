@@ -126,7 +126,7 @@ async def test_folder_all_merges_every_well_known_folder() -> None:
 
     assert {item["id"] for item in page["items"]} == {"inboxed", "archived"}
     assert page["total"] == 2
-    assert page["folder"] == "all"
+    assert page["folder"] == "inbox, archive, junkemail, sentitems, drafts"
 
 
 async def test_passes_every_filter_through() -> None:
@@ -185,7 +185,7 @@ async def test_count_folder_all_sums_every_well_known_folder() -> None:
 
     assert await call(server, COUNT_EMAILS_TOOL, {"folder": "all"}) == {
         "total": 2,
-        "folder": "all",
+        "folder": "inbox, archive, junkemail, sentitems, drafts",
     }
 
 

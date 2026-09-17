@@ -94,7 +94,7 @@ async def test_folder_all_merges_every_well_known_folder() -> None:
 
     assert ranking["senders"] == [{"address": "bo@x.io", "name": "Bo", "count": 2}]
     assert ranking["total"] == 2
-    assert ranking["folder"] == "all"
+    assert ranking["folder"] == "inbox, archive, junkemail, sentitems, drafts"
 
 
 async def test_applies_the_filters_and_the_limit() -> None:

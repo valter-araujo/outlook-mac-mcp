@@ -122,7 +122,7 @@ def _translate(use_case: ListUnreadEmails, model: ListUnreadEmailsInput) -> Emai
     with observed_tool_call(LIST_UNREAD_EMAILS_TOOL) as outcome:
         page = use_case.execute(model.to_request())
         outcome.item_count = len(page.items)
-        return EmailPageView.from_page(page, folder=model.folder.value)
+        return EmailPageView.from_page(page, folder=model.folder.describe_folders())
 
 
 def _register_get_email(server: MCPServer, use_case: GetEmail) -> None:
@@ -165,4 +165,4 @@ def _translate_search(use_case: SearchEmails, model: SearchEmailsInput) -> Email
     with observed_tool_call(SEARCH_EMAILS_TOOL) as outcome:
         page = use_case.execute(model.to_request())
         outcome.item_count = len(page.items)
-        return EmailSearchPageView.from_page(page, folder=model.folder.value)
+        return EmailSearchPageView.from_page(page, folder=model.folder.describe_folders())

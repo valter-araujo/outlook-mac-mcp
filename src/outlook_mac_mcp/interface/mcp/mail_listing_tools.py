@@ -83,7 +83,7 @@ def _translate_list(use_case: ListEmails, model: ListEmailsInput) -> EmailPageVi
     with observed_tool_call(LIST_EMAILS_TOOL) as outcome:
         page = use_case.execute(model.to_request())
         outcome.item_count = len(page.items)
-        return EmailPageView.from_page(page, folder=model.folder.value)
+        return EmailPageView.from_page(page, folder=model.folder.describe_folders())
 
 
 def _register_count_emails(server: MCPServer, use_case: CountEmails) -> None:
@@ -115,4 +115,4 @@ def _translate_count(use_case: CountEmails, model: EmailFiltersInput) -> EmailCo
     with observed_tool_call(COUNT_EMAILS_TOOL) as outcome:
         total = use_case.execute(model.to_filters())
         outcome.item_count = total
-        return EmailCountView(total=total, folder=model.folder.value)
+        return EmailCountView(total=total, folder=model.folder.describe_folders())

@@ -63,4 +63,4 @@ def _translate(use_case: TopSenders, model: TopSendersInput) -> SenderRankingVie
     with observed_tool_call(TOP_SENDERS_TOOL) as outcome:
         ranking = use_case.execute(model.to_request())
         outcome.item_count = len(ranking.senders)
-        return SenderRankingView.from_ranking(ranking, folder=model.folder.value)
+        return SenderRankingView.from_ranking(ranking, folder=model.folder.describe_folders())

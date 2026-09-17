@@ -6,8 +6,10 @@ from outlook_mac_mcp.interface.mcp.email_view import EmailView
 from outlook_mac_mcp.interface.mcp.page_view import PageView
 
 FOLDER_DESCRIPTION = (
-    "The folder value this call was scoped to: one well-known folder, or all when every "
-    "well-known folder was searched and merged."
+    "Every folder this call was actually scoped to, as a comma-separated list: one "
+    "well-known folder's name, or all five of them when folder was all. Always the "
+    "real names, never the literal word all, so two all results stay comparable "
+    "without reading the code to know what all covered at the time."
 )
 
 
