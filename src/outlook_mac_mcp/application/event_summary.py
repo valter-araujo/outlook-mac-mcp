@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.new_event import NewEvent
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 
 DAY_FORMAT = "%a %d %b %Y"
 CLOCK_FORMAT = "%H:%M"
@@ -25,6 +27,12 @@ def describe(event: NewEvent) -> str:
         parts.append("with " + ", ".join(attendee.address for attendee in event.attendees))
     if event.body:
         parts.append(f"body: {summarize_body(event.body)}")
+    if event.reminder_minutes_before_start is not None:
+        parts.append(f"reminder: {describe_reminder(event.reminder_minutes_before_start)}")
+    if event.sensitivity is not None:
+        parts.append(f"sensitivity: {describe_sensitivity(event.sensitivity)}")
+    if event.show_as is not None:
+        parts.append(f"show as: {describe_show_as(event.show_as)}")
     return "; ".join(parts)
 
 
@@ -62,6 +70,21 @@ def describe_body(body: str) -> str:
 def describe_attendees(attendees: tuple[EmailAddress, ...]) -> str:
     """An attendee list for an update diff or a deletion snapshot; see describe_place."""
     return ", ".join(attendee.address for attendee in attendees) if attendees else "(none)"
+
+
+def describe_reminder(minutes: int | None) -> str:
+    """A reminder field for a create summary or an update diff; see describe_place."""
+    return f"{minutes} min before" if minutes is not None else "(none)"
+
+
+def describe_sensitivity(sensitivity: Sensitivity | None) -> str:
+    """A sensitivity field for a create summary or an update diff; see describe_place."""
+    return sensitivity.value if sensitivity is not None else "(none)"
+
+
+def describe_show_as(show_as: ShowAs | None) -> str:
+    """A show-as field for a create summary or an update diff; see describe_place."""
+    return show_as.value if show_as is not None else "(none)"
 
 
 def _when(event: NewEvent) -> str:

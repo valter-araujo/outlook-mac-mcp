@@ -7,6 +7,8 @@ from outlook_mac_mcp.application.event_summary import MAX_BODY_IN_SUMMARY
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.new_event import NewEvent
+from outlook_mac_mcp.domain.sensitivity import Sensitivity
+from outlook_mac_mcp.domain.show_as import ShowAs
 
 SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 NINE = datetime(2026, 9, 15, 9, tzinfo=SAO_PAULO)
@@ -115,3 +117,43 @@ def test_truncates_a_long_body_with_an_explicit_character_count() -> None:
     # The preview -> token -> create contract only holds if nothing beyond the
     # truncation point silently vanishes from what the user is shown as a count.
     assert body not in summary
+
+
+def test_omits_reminder_sensitivity_and_show_as_when_none_are_given() -> None:
+    event = NewEvent(subject="Planning", start=NINE, end=NINE + timedelta(hours=1))
+
+    summary = PreviewEvent(DraftStore()).execute(event).summary
+
+    assert "reminder" not in summary
+    assert "sensitivity" not in summary
+    assert "show as" not in summary
+
+
+def test_includes_a_reminder_of_zero_minutes() -> None:
+    event = NewEvent(
+        subject="Planning",
+        start=NINE,
+        end=NINE + timedelta(hours=1),
+        reminder_minutes_before_start=0,
+    )
+
+    summary = PreviewEvent(DraftStore()).execute(event).summary
+
+    assert "reminder: 0 min before" in summary
+
+
+def test_includes_sensitivity_and_show_as_when_given() -> None:
+    event = NewEvent(
+        subject="Planning",
+        start=NINE,
+        end=NINE + timedelta(hours=1),
+        reminder_minutes_before_start=30,
+        sensitivity=Sensitivity.PRIVATE,
+        show_as=ShowAs.TENTATIVE,
+    )
+
+    summary = PreviewEvent(DraftStore()).execute(event).summary
+
+    assert "reminder: 30 min before" in summary
+    assert "sensitivity: private" in summary
+    assert "show as: tentative" in summary

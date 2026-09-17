@@ -3,6 +3,9 @@ from outlook_mac_mcp.application.event_summary import (
     describe_body,
     describe_moment,
     describe_place,
+    describe_reminder,
+    describe_sensitivity,
+    describe_show_as,
 )
 from outlook_mac_mcp.domain.event import Event
 from outlook_mac_mcp.domain.event_changes import EventChanges
@@ -26,6 +29,15 @@ def merge_changes(current: Event, changes: EventChanges) -> NewEvent:
         location=changes.location if changes.location is not None else current.location,
         body=changes.body if changes.body is not None else current.body,
         attendees=changes.attendees if changes.attendees is not None else current.attendees,
+        reminder_minutes_before_start=(
+            changes.reminder_minutes_before_start
+            if changes.reminder_minutes_before_start is not None
+            else current.reminder_minutes_before_start
+        ),
+        sensitivity=(
+            changes.sensitivity if changes.sensitivity is not None else current.sensitivity
+        ),
+        show_as=changes.show_as if changes.show_as is not None else current.show_as,
     )
 
 
@@ -55,6 +67,20 @@ def describe_changes(current: Event, changes: EventChanges) -> str:
         diffs.append(
             f"attendees: {describe_attendees(current.attendees)} -> "
             f"{describe_attendees(changes.attendees)}"
+        )
+    if changes.reminder_minutes_before_start is not None:
+        diffs.append(
+            f"reminder: {describe_reminder(current.reminder_minutes_before_start)} -> "
+            f"{describe_reminder(changes.reminder_minutes_before_start)}"
+        )
+    if changes.sensitivity is not None:
+        diffs.append(
+            f"sensitivity: {describe_sensitivity(current.sensitivity)} -> "
+            f"{describe_sensitivity(changes.sensitivity)}"
+        )
+    if changes.show_as is not None:
+        diffs.append(
+            f"show as: {describe_show_as(current.show_as)} -> {describe_show_as(changes.show_as)}"
         )
     identity = (
         f'"{current.subject}" ({describe_moment(current.start)} to {describe_moment(current.end)})'
