@@ -58,6 +58,7 @@ class _ScanState:
     budget: _Budget
     folders: list[CustomMailFolder] = field(default_factory=list)
     depth_limit_reached: bool = False
+    pages: int = 0
 
 
 def scan_custom_folders(client: GraphClient, max_depth: int, max_folders: int) -> CustomFolderScan:
@@ -74,7 +75,13 @@ def scan_custom_folders(client: GraphClient, max_depth: int, max_folders: int) -
             break
         _walk_children(client, folder.folder_id, folder.display_name, 1, max_depth, state)
 
-    _log(len(state.folders), started_at)
+    _log(
+        len(state.folders),
+        state.pages,
+        state.depth_limit_reached,
+        state.budget.limit_reached,
+        started_at,
+    )
     return CustomFolderScan(
         folders=tuple(state.folders),
         depth_limit_reached=state.depth_limit_reached,
@@ -108,6 +115,7 @@ def _walk_children(
         f"/me/mailFolders/{quote(parent_id, safe='')}/childFolders",
         {"$top": CHILD_PAGE_SIZE, "$select": ",".join(CHILD_FIELDS)},
     )
+    state.pages += 1
     while True:
         if not _collect_page(client, payload, path_prefix, depth, max_depth, state, skip_ids):
             return
@@ -118,6 +126,7 @@ def _walk_children(
             state.budget.limit_reached = True
             return
         payload = client.follow(next_link)
+        state.pages += 1
 
 
 def _collect_page(
@@ -182,12 +191,21 @@ def _required_count(resource: Mapping[str, Any], field_name: str) -> int:
     return value
 
 
-def _log(folders_found: int, started_at: float) -> None:
+def _log(
+    folders_found: int,
+    pages: int,
+    depth_limit_reached: bool,
+    folder_limit_reached: bool,
+    started_at: float,
+) -> None:
     project_logger().info(
         CUSTOM_FOLDER_SCAN_EVENT,
         extra={
             "fields": {
                 "folders_found": folders_found,
+                "pages": pages,
+                "depth_limit_reached": depth_limit_reached,
+                "folder_limit_reached": folder_limit_reached,
                 "duration_ms": round((perf_counter() - started_at) * 1000, 3),
             }
         },

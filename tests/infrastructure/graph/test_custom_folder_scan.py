@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -7,7 +8,9 @@ import respx
 
 from outlook_mac_mcp.application.ports.mail_folder_repository import MailFolderRepository
 from outlook_mac_mcp.infrastructure.graph.client import GRAPH_BASE_URL, GraphClient
+from outlook_mac_mcp.infrastructure.graph.custom_folder_scan import CUSTOM_FOLDER_SCAN_EVENT
 from outlook_mac_mcp.infrastructure.graph.mail_folder_repository import GraphMailFolderRepository
+from outlook_mac_mcp.interface.mcp.observability import configure_logging
 
 WELL_KNOWN_URLS = {
     "inbox": f"{GRAPH_BASE_URL}/me/mailFolders/inbox",
@@ -205,3 +208,69 @@ def test_a_folder_id_with_url_reserved_characters_is_percent_encoded(
     repository.list_custom(max_depth=10, max_folders=200)
 
     assert route.call_count == 1
+
+
+@respx.mock
+def test_logs_pages_and_folders_found_but_never_a_display_name(
+    repository: GraphMailFolderRepository, capsys: pytest.CaptureFixture[str]
+) -> None:
+    configure_logging()
+    mock_well_known_summaries()
+    mock_children(
+        "msgfolderroot",
+        page([folder_item("c-candidaturas", "Candidaturas", child_count=1)]),
+    )
+    mock_empty_children_for_every_well_known()
+    mock_children("c-candidaturas", page([folder_item("c-2026", "2026", child_count=0)]))
+
+    repository.list_custom(max_depth=10, max_folders=200)
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    record = json.loads(captured.err.splitlines()[-1])
+    assert record["event"] == CUSTOM_FOLDER_SCAN_EVENT
+    assert record["folders_found"] == 2
+    # msgfolderroot + 5 well-known folders + c-candidaturas's own childFolders call.
+    assert record["pages"] == 7
+    assert record["depth_limit_reached"] is False
+    assert record["folder_limit_reached"] is False
+    assert isinstance(record["duration_ms"], float)
+    assert "Candidaturas" not in captured.err
+
+
+@respx.mock
+def test_logs_when_the_depth_limit_was_reached(
+    repository: GraphMailFolderRepository, capsys: pytest.CaptureFixture[str]
+) -> None:
+    configure_logging()
+    mock_well_known_summaries()
+    mock_children(
+        "msgfolderroot",
+        page([folder_item("c-candidaturas", "Candidaturas", child_count=1)]),
+    )
+    mock_empty_children_for_every_well_known()
+
+    repository.list_custom(max_depth=1, max_folders=200)
+
+    record = json.loads(capsys.readouterr().err.splitlines()[-1])
+    assert record["depth_limit_reached"] is True
+    assert record["folder_limit_reached"] is False
+
+
+@respx.mock
+def test_logs_when_the_folder_limit_was_reached(
+    repository: GraphMailFolderRepository, capsys: pytest.CaptureFixture[str]
+) -> None:
+    configure_logging()
+    mock_well_known_summaries()
+    mock_children(
+        "msgfolderroot",
+        page([folder_item("c-a", "A"), folder_item("c-b", "B")]),
+    )
+    mock_empty_children_for_every_well_known()
+
+    repository.list_custom(max_depth=10, max_folders=1)
+
+    record = json.loads(capsys.readouterr().err.splitlines()[-1])
+    assert record["depth_limit_reached"] is False
+    assert record["folder_limit_reached"] is True
