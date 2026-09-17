@@ -1,7 +1,6 @@
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.search_emails_request import SearchEmailsRequest
-from outlook_mac_mcp.domain.email import Email
-from outlook_mac_mcp.domain.page import Page
+from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 
 
 class SearchEmails:
@@ -15,5 +14,5 @@ class SearchEmails:
     def __init__(self, mail_repository: MailRepository) -> None:
         self._mail_repository = mail_repository
 
-    def execute(self, request: SearchEmailsRequest) -> Page[Email]:
+    def execute(self, request: SearchEmailsRequest) -> EmailSearchPage:
         return self._mail_repository.search(request)

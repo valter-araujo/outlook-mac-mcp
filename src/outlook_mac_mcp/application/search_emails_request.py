@@ -21,12 +21,19 @@ class SearchEmailsRequest:
 
     It lives in its own module so the port can name it without importing the use case
     that consumes it.
+
+    `page_token` is opaque to everything above the Graph adapter: None means the first
+    page of a new search, built from `term`/`folder`/`scope`; anything else is a
+    continuation token from a previous page, and the adapter follows it directly instead
+    of rebuilding the query. `term`/`folder`/`scope` are still validated and still
+    present on a continuation call, but the adapter does not use them to fetch the page.
     """
 
     term: str
     folder: FolderName = FolderName.INBOX
     scope: SearchScope = SearchScope.ANY
     limit: int = DEFAULT_LIMIT
+    page_token: str | None = None
 
     def __post_init__(self) -> None:
         if not MIN_TERM_LENGTH <= len(self.term) <= MAX_TERM_LENGTH:

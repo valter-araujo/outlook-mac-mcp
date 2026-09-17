@@ -5,6 +5,7 @@ from outlook_mac_mcp.application.search_emails_request import SearchEmailsReques
 from outlook_mac_mcp.domain.email import Email
 from outlook_mac_mcp.domain.email_detail import EmailDetail
 from outlook_mac_mcp.domain.email_filters import EmailFilters
+from outlook_mac_mcp.domain.email_search_page import EmailSearchPage
 from outlook_mac_mcp.domain.email_size_scan import EmailSizeScan
 from outlook_mac_mcp.domain.folder_name import FolderName
 from outlook_mac_mcp.domain.page import Page
@@ -26,12 +27,14 @@ class MailRepository(Protocol):
         """
         ...
 
-    def search(self, request: SearchEmailsRequest) -> Page[Email]:
+    def search(self, request: SearchEmailsRequest) -> EmailSearchPage:
         """Return the emails matching `request`, in relevance order.
 
         The term is matched as literal text; it never carries query operators. The
         page's total is the number of matches, which the backend may only be able to
-        bound from below; `total_is_exact` says which.
+        bound from below; `total_is_exact` says which. When `request.page_token` is
+        given, that continuation token is followed directly instead of the query being
+        rebuilt from `term`/`folder`/`scope`.
         """
         ...
 
