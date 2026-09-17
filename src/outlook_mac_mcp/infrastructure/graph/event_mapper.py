@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.event import Event
 from outlook_mac_mcp.infrastructure.graph.email_address_mapper import to_email_address
 from outlook_mac_mcp.infrastructure.graph.errors import GraphResponseError
@@ -24,8 +25,8 @@ def to_event(event: Mapping[str, Any]) -> Event:
     in the zone they were created in; attaching whatever zone Graph names keeps the
     instant right in both cases.
 
-    A listing never selects `body`, so `optional_text_body` reads it as empty there; only
-    a just-created event, read back with a text-body preference, ever carries one.
+    A listing never selects `body` or `attendees`, so both read as empty there; only a
+    targeted read of one event, with those fields selected, ever carries them.
     """
     return Event(
         id=required_text(event, "id"),
@@ -36,7 +37,15 @@ def to_event(event: Mapping[str, Any]) -> Event:
         location=_read_location(event),
         organizer=to_email_address(event.get("organizer")),
         body=optional_text_body(event),
+        attendees=_read_attendees(event),
     )
+
+
+def _read_attendees(event: Mapping[str, Any]) -> tuple[EmailAddress, ...]:
+    attendees = event.get("attendees")
+    if not isinstance(attendees, list):
+        return ()
+    return tuple(to_email_address(attendee) for attendee in attendees)
 
 
 def _read_date_time(event: Mapping[str, Any], field: str) -> datetime:

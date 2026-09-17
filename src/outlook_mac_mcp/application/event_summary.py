@@ -23,15 +23,27 @@ def describe(event: NewEvent) -> str:
     if event.attendees:
         parts.append("with " + ", ".join(attendee.address for attendee in event.attendees))
     if event.body:
-        parts.append(_body_summary(event.body))
+        parts.append(f"body: {summarize_body(event.body)}")
     return "; ".join(parts)
 
 
-def _body_summary(body: str) -> str:
+def summarize_body(body: str) -> str:
+    """The body as it will appear in a one-line summary: quoted and verbatim if it fits
+    a reasonable display length, or quoted, truncated and counted when it does not, so
+    nothing that will be written or removed is ever silently hidden from a confirmation.
+    """
     if len(body) <= MAX_BODY_IN_SUMMARY:
-        return f'body: "{body}"'
+        return f'"{body}"'
     truncated = body[:MAX_BODY_IN_SUMMARY]
-    return f'body: "{truncated}…" ({len(body)} characters total, truncated for this summary)'
+    return f'"{truncated}…" ({len(body)} characters total, truncated for this summary)'
+
+
+def describe_moment(instant: datetime) -> str:
+    """One point in time, for an update diff or a deletion snapshot, where `describe`'s
+    range-and-all-day-aware formatting is not what is being shown, only two boundaries.
+    """
+    offset = f"UTC{instant.isoformat()[-6:]}"
+    return f"{instant.strftime(DAY_FORMAT)} {instant.strftime(CLOCK_FORMAT)} ({offset})"
 
 
 def _when(event: NewEvent) -> str:

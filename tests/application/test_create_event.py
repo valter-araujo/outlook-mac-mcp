@@ -8,6 +8,7 @@ from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.event_draft import EventDraft
 from outlook_mac_mcp.domain.errors import DraftNotFoundError
 from outlook_mac_mcp.domain.event import Event
+from outlook_mac_mcp.domain.event_changes import EventChanges
 from outlook_mac_mcp.domain.new_event import NewEvent
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError
 from tests.fakes.in_memory_calendar_writer import InMemoryCalendarWriter
@@ -17,12 +18,22 @@ AN_EVENT = NewEvent(subject="Planning", start=NINE, end=NINE + timedelta(hours=1
 
 
 class FailingCalendarWriter:
+    """Only `create` is exercised here; the other CalendarWriter methods are unused by
+    CreateEvent but still need a body to satisfy the port.
+    """
+
     def __init__(self) -> None:
         self.calls = 0
 
     def create(self, new_event: NewEvent) -> Event:
         self.calls += 1
         raise GraphRequestError("Graph returned 503", 503, "ServiceUnavailable")
+
+    def get_by_id(self, event_id: str) -> Event:
+        raise NotImplementedError
+
+    def update(self, changes: EventChanges) -> Event:
+        raise NotImplementedError
 
 
 def new_store() -> DraftStore[EventDraft]:

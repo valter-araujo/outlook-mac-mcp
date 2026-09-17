@@ -3,6 +3,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from outlook_mac_mcp.domain.email_address import EmailAddress
+from outlook_mac_mcp.domain.event_changes import EventChanges
 from outlook_mac_mcp.domain.new_event import NewEvent
 
 REQUIRED_ATTENDEE = "required"
@@ -18,8 +19,8 @@ def to_event_payload(new_event: NewEvent, timezone: ZoneInfo) -> dict[str, Any]:
     """
     payload: dict[str, Any] = {
         "subject": new_event.subject,
-        "start": _date_time(new_event, new_event.start, timezone),
-        "end": _date_time(new_event, new_event.end, timezone),
+        "start": _date_time(new_event.is_all_day, new_event.start, timezone),
+        "end": _date_time(new_event.is_all_day, new_event.end, timezone),
         "isAllDay": new_event.is_all_day,
         "attendees": [_attendee(attendee) for attendee in new_event.attendees],
     }
@@ -30,10 +31,30 @@ def to_event_payload(new_event: NewEvent, timezone: ZoneInfo) -> dict[str, Any]:
     return payload
 
 
-def _date_time(new_event: NewEvent, instant: datetime, timezone: ZoneInfo) -> dict[str, str]:
-    wall_clock = (
-        instant.replace(tzinfo=None) if new_event.is_all_day else instant.astimezone(timezone)
-    )
+def to_event_patch_payload(
+    changes: EventChanges, is_all_day: bool, timezone: ZoneInfo
+) -> dict[str, Any]:
+    """Shape an EventChanges the way PATCH /me/events/{id} expects it: only the fields
+    the caller actually supplied, so an untouched field is left exactly as it was.
+    """
+    payload: dict[str, Any] = {}
+    if changes.subject is not None:
+        payload["subject"] = changes.subject
+    if changes.start is not None:
+        payload["start"] = _date_time(is_all_day, changes.start, timezone)
+    if changes.end is not None:
+        payload["end"] = _date_time(is_all_day, changes.end, timezone)
+    if changes.location is not None:
+        payload["location"] = {"displayName": changes.location}
+    if changes.body is not None:
+        payload["body"] = {"contentType": "text", "content": changes.body}
+    if changes.attendees is not None:
+        payload["attendees"] = [_attendee(attendee) for attendee in changes.attendees]
+    return payload
+
+
+def _date_time(is_all_day: bool, instant: datetime, timezone: ZoneInfo) -> dict[str, str]:
+    wall_clock = instant.replace(tzinfo=None) if is_all_day else instant.astimezone(timezone)
     return {"dateTime": wall_clock.replace(tzinfo=None).isoformat(), "timeZone": timezone.key}
 
 
