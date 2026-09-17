@@ -70,7 +70,7 @@ Ordered chronologically by validation date (oldest first).
 |---|---|---|---|---|---|---|
 | 0.1.0 | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | Outlook for Mac 16.112.4 (26090911), New Outlook, M365 Subscription — not used by the server | **validated** 2026-09-14 |
 | 0.2.0 (calendar write on) | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | as above | **validated** 2026-09-15 |
-| 0.8.0 (through custom folders) | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | as above | **validated** 2026-09-17 |
+| 0.9.0 (through delete_event) | macOS 27.0 (Golden Gate), Apple M5 | 3.14.7 | Claude Desktop | Personal (`@hotmail.com`) | as above | **validated** 2026-09-17 |
 
 A row moves to **validated** only after the tools it names return correct results on
 that environment, against a real mailbox. Contributions of new rows are welcome — please
@@ -78,17 +78,16 @@ include exact versions.
 
 ### Validated tools
 
-Sorted alphabetically by tool name. Three shipped tools are not in this table yet —
-each has unit and respx coverage but no live validation against a real mailbox:
+Sorted alphabetically by tool name. One shipped tool is not in this table yet — it has
+unit and respx coverage but no live validation against a real mailbox:
 
 - `search_contacts` — no contact exists in the test mailbox to search for yet.
-- `preview_event_deletion` and `delete_event` — gated behind their own opt-in flag
-  (`OUTLOOK_MCP_ENABLE_CALENDAR_DELETE`), not yet exercised live.
 
 | Tool | Validated | What was checked |
 |---|---|---|
 | `count_emails` | 2026-09-15 | A received-time range covering one month returned an exact count. |
 | `create_event` | 2026-09-15, 2026-09-16, 2026-09-17 | Created a timed event and an all-day event; Graph accepted the all-day payload with the resolved zone's name, and both came back readable. A body from the preview was written to the created event correctly. An event with no body at all also succeeded, confirming the fix for Graph defaulting an unsent body to HTML. |
+| `delete_event` | 2026-09-17 | Deleted the event previewed under `preview_event_deletion`'s token; confirmed removed from the calendar directly in Outlook. |
 | `get_email` | 2026-09-14 | Text body returned with the `Prefer` header honoured; the malformed id `nope` came back as `ErrorInvalidIdMalformed` and was mapped to `InvalidRequestError`. |
 | `list_emails` | 2026-09-15 | `sort=oldest`, `limit=1` returned the folder's earliest email with an exact total; an exact-sender filter with `sort=newest` returned exactly one match, and Graph accepted the sender filter combined with `$orderby` without an `InefficientFilter` error. |
 | `list_folders` | 2026-09-17 | Discovered 100+ custom folders correctly, including several levels of nesting, each with accurate per-folder unread/total counts. Confirmed the documented limitation live: a Microsoft-managed folder with no well-known flag (Deleted Items) appeared in `custom` as expected, alongside genuine user-created folders. |
@@ -97,15 +96,16 @@ each has unit and respx coverage but no live validation against a real mailbox:
 | `list_unread_emails` | 2026-09-14 | Reads a Hotmail inbox through Graph. |
 | `list_upcoming_events` | 2026-09-15 | Returned the matching events, earliest first; confirmed both an all-day event and a timed event mapped correctly in the resolved time zone. |
 | `preview_event` | 2026-09-15, 2026-09-16 | Summary and token for a timed and an all-day event; a body well under the truncation threshold showed in full, verbatim, in the preview. |
+| `preview_event_deletion` | 2026-09-17 | Showed the complete event (every field, unabbreviated) with the irreversibility warning before any deletion happened. |
 | `preview_event_update` | 2026-09-17 | A time change (10:00–10:30 -> 11:00–11:30) produced a diff summary showing only the changed field, old value -> new value. |
 | `search_emails` | 2026-09-14, 2026-09-15, 2026-09-17 | A term matching several emails returned an exact total; `scope=subject` and `scope=sender` each returned a narrower, still-exact subset; a term trying to break out of the phrase returned empty with no 400. Passing `next_page_token` back as `page_token` returned a genuinely different second page (a different date window, no items repeated from the first), with `total`/`total_is_exact` still accurate on that page. |
 | `top_senders` | 2026-09-15 | A full inbox scan hit the configured ceiling with `coverage_is_complete=false`; the client reported the partial coverage explicitly, as the description asks. |
 | `update_event` | 2026-09-17 | Applied the previewed time change (10:00–10:30 -> 11:00–11:30) exactly; the updated event reflected only that change. |
 
 Every tool below has been validated against a real mailbox on the environment above;
-`search_contacts`, `preview_event_deletion`, and `delete_event` have unit and respx
-coverage but no live validation yet (see above). Search quoting is additionally covered
-by a live positive-control check, see [Integration tests](#integration-tests).
+`search_contacts` has unit and respx coverage but no live validation yet (see above).
+Search quoting is additionally covered by a live positive-control check, see
+[Integration tests](#integration-tests).
 
 ## Scope
 
