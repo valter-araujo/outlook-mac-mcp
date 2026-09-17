@@ -160,7 +160,7 @@ flowchart TB
         tools["MCP tools<br/>pydantic input · flat output views"]
     end
     subgraph application["application — use cases"]
-        uc["ListUnreadEmails · SearchEmails · GetEmail<br/>ListEmails · CountEmails · TopSenders<br/>ListTodaysEvents · ListUpcomingEvents<br/>PreviewEvent · CreateEvent · ListFolders · SearchContacts"]
+        uc["ListUnreadEmails · SearchEmails · GetEmail<br/>ListEmails · CountEmails · TopSenders · ListLargestEmails<br/>ListTodaysEvents · ListUpcomingEvents<br/>PreviewEvent · CreateEvent<br/>PreviewEventUpdate · UpdateEvent<br/>PreviewEventDeletion · DeleteEvent<br/>ListFolders · SearchContacts"]
         ports["Ports (Protocol)<br/>MailRepository · CalendarRepository · CalendarWriter<br/>ContactRepository · MailFolderRepository · Clock"]
     end
     subgraph domain["domain — entities and rules"]
