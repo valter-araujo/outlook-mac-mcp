@@ -1,13 +1,15 @@
+from collections.abc import Mapping
 from http import HTTPStatus
+from typing import Any
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-from outlook_mac_mcp.domain.errors import EventNotFoundError
+from outlook_mac_mcp.domain.errors import EventNotFoundError, EventWriteUnconfirmedError
 from outlook_mac_mcp.domain.event import Event
 from outlook_mac_mcp.domain.event_changes import EventChanges
 from outlook_mac_mcp.domain.new_event import NewEvent
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
-from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError
+from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
 from outlook_mac_mcp.infrastructure.graph.event_mapper import EVENT_FIELDS, to_event
 from outlook_mac_mcp.infrastructure.graph.event_payload import (
     to_event_patch_payload,
@@ -47,7 +49,7 @@ class GraphCalendarWriter:
             to_event_payload(new_event, self._timezone),
             self._body_read_headers(),
         )
-        return to_event(payload)
+        return self._map_write_response(payload, "created")
 
     def get_by_id(self, event_id: str) -> Event:
         try:
@@ -74,7 +76,7 @@ class GraphCalendarWriter:
             if error.status_code == HTTPStatus.NOT_FOUND:
                 raise EventNotFoundError(f"no event with id {changes.event_id}") from error
             raise
-        return to_event(payload)
+        return self._map_write_response(payload, "updated")
 
     def delete(self, event_id: str) -> None:
         try:
@@ -83,6 +85,21 @@ class GraphCalendarWriter:
             if error.status_code == HTTPStatus.NOT_FOUND:
                 raise EventNotFoundError(f"no event with id {event_id}") from error
             raise
+
+    def _map_write_response(self, payload: Mapping[str, Any], verb: str) -> Event:
+        """By the time this runs, Graph has already created or updated the event: a
+        mapping failure here must never be indistinguishable from the write itself
+        failing, or a caller who retries turns one write into two.
+        """
+        try:
+            return to_event(payload)
+        except GraphResponseError as error:
+            event_id = payload.get("id")
+            where = f" (id {event_id})" if isinstance(event_id, str) else ""
+            raise EventWriteUnconfirmedError(
+                f"the event was {verb}{where}, but its details could not be read back "
+                f"afterward: {error}. Check your calendar directly before retrying."
+            ) from error
 
     def _resolve_is_all_day(self, changes: EventChanges) -> bool:
         """is_all_day is never itself a changeable field, so it is only worth a fetch when

@@ -10,14 +10,14 @@ import respx
 
 from outlook_mac_mcp.application.ports.calendar_writer import CalendarWriter
 from outlook_mac_mcp.domain.email_address import EmailAddress
-from outlook_mac_mcp.domain.errors import EventNotFoundError
+from outlook_mac_mcp.domain.errors import EventNotFoundError, EventWriteUnconfirmedError
 from outlook_mac_mcp.domain.event_changes import EventChanges
 from outlook_mac_mcp.domain.new_event import NewEvent
 from outlook_mac_mcp.domain.sensitivity import Sensitivity
 from outlook_mac_mcp.domain.show_as import ShowAs
 from outlook_mac_mcp.infrastructure.graph.calendar_writer import GraphCalendarWriter
 from outlook_mac_mcp.infrastructure.graph.client import GRAPH_BASE_URL, GraphClient
-from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
+from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError
 
 EVENTS_URL = f"{GRAPH_BASE_URL}/me/events"
 AN_EVENT_URL = f"{EVENTS_URL}/AAMkEXISTING"
@@ -159,10 +159,35 @@ def test_raises_when_graph_rejects_the_event(writer: GraphCalendarWriter) -> Non
 
 @respx.mock
 def test_raises_when_the_created_event_is_malformed(writer: GraphCalendarWriter) -> None:
+    """By the time this response is being mapped, Graph has already created the event —
+    see test_create_says_the_event_was_created_when_its_response_cannot_be_mapped for why
+    that must not be reported the same way as a write that never happened.
+    """
     respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json={"id": "AAMkNEW"}))
 
-    with pytest.raises(GraphResponseError):
+    with pytest.raises(EventWriteUnconfirmedError):
         writer.create(A_NEW_EVENT)
+
+
+@respx.mock
+def test_create_says_the_event_was_created_when_its_response_cannot_be_mapped(
+    writer: GraphCalendarWriter,
+) -> None:
+    """Regression test: found live when two failed create_event calls silently created
+    two real events. The POST had already succeeded by the time the body-mapping step
+    raised GraphResponseError, and that error on its own read exactly like the write had
+    failed, so the caller retried — turning one write into two.
+    """
+    broken = {**CREATED, "body": {"contentType": "html", "content": "<html></html>"}}
+    respx.post(EVENTS_URL).mock(return_value=httpx.Response(201, json=broken))
+
+    with pytest.raises(EventWriteUnconfirmedError) as excinfo:
+        writer.create(A_NEW_EVENT)
+
+    message = str(excinfo.value)
+    assert "created" in message
+    assert "AAMkNEW" in message
+    assert "check your calendar" in message.lower()
 
 
 @respx.mock
@@ -306,6 +331,27 @@ def test_raises_event_not_found_when_patching_an_unknown_id(writer: GraphCalenda
 
     with pytest.raises(EventNotFoundError):
         writer.update(changes)
+
+
+@respx.mock
+def test_update_says_the_event_was_updated_when_its_response_cannot_be_mapped(
+    writer: GraphCalendarWriter,
+) -> None:
+    """Same regression as create's: the PATCH has already applied the change by the
+    time the body-mapping step raises, so the error must say so, not read as a failed
+    update that never touched the calendar.
+    """
+    broken = {**EXISTING, "body": {"contentType": "html", "content": "<html></html>"}}
+    respx.patch(AN_EVENT_URL).mock(return_value=httpx.Response(200, json=broken))
+    changes = EventChanges(event_id="AAMkEXISTING", subject="Replanning")
+
+    with pytest.raises(EventWriteUnconfirmedError) as excinfo:
+        writer.update(changes)
+
+    message = str(excinfo.value)
+    assert "updated" in message
+    assert "AAMkEXISTING" in message
+    assert "check your calendar" in message.lower()
 
 
 @respx.mock
