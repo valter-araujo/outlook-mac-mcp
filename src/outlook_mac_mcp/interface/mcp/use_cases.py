@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.get_email import GetEmail
+from outlook_mac_mcp.application.list_custom_folders import ListCustomFolders
 from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_folders import ListFolders
 from outlook_mac_mcp.application.list_largest_emails import ListLargestEmails
@@ -30,6 +31,7 @@ class UseCases:
     list_emails: ListEmails
     count_emails: CountEmails
     list_folders: ListFolders
+    list_custom_folders: ListCustomFolders
     search_contacts: SearchContacts
     top_senders: TopSenders
     list_largest_emails: ListLargestEmails

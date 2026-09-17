@@ -10,6 +10,7 @@ from outlook_mac_mcp.application.event_deletion_draft import EventDeletionDraft
 from outlook_mac_mcp.application.event_draft import EventDraft
 from outlook_mac_mcp.application.event_update_draft import EventUpdateDraft
 from outlook_mac_mcp.application.get_email import GetEmail
+from outlook_mac_mcp.application.list_custom_folders import ListCustomFolders
 from outlook_mac_mcp.application.list_emails import ListEmails
 from outlook_mac_mcp.application.list_folders import ListFolders
 from outlook_mac_mcp.application.list_largest_emails import ListLargestEmails
@@ -76,6 +77,7 @@ def calendar_write_use_cases(writer: CalendarWriter) -> UseCases:
         top_senders=bundle.top_senders,
         list_largest_emails=bundle.list_largest_emails,
         list_folders=bundle.list_folders,
+        list_custom_folders=bundle.list_custom_folders,
         search_contacts=bundle.search_contacts,
         calendar_write=write,
     )
@@ -107,6 +109,7 @@ def calendar_write_use_cases_without_deletion(writer: CalendarWriter) -> UseCase
         top_senders=bundle.top_senders,
         list_largest_emails=bundle.list_largest_emails,
         list_folders=bundle.list_folders,
+        list_custom_folders=bundle.list_custom_folders,
         search_contacts=bundle.search_contacts,
         calendar_write=write,
     )
@@ -126,6 +129,7 @@ def folders_use_cases(repository: MailFolderRepository) -> UseCases:
         top_senders=bundle.top_senders,
         list_largest_emails=bundle.list_largest_emails,
         list_folders=ListFolders(repository),
+        list_custom_folders=ListCustomFolders(repository),
         search_contacts=SearchContacts(InMemoryContactRepository()),
     )
 
@@ -144,11 +148,13 @@ def contacts_use_cases(repository: ContactRepository) -> UseCases:
         top_senders=bundle.top_senders,
         list_largest_emails=bundle.list_largest_emails,
         list_folders=bundle.list_folders,
+        list_custom_folders=bundle.list_custom_folders,
         search_contacts=SearchContacts(repository),
     )
 
 
 def _bundle(mail: MailRepository, calendar: CalendarRepository, clock: Clock) -> UseCases:
+    folder_repository = InMemoryMailFolderRepository()
     return UseCases(
         list_unread_emails=ListUnreadEmails(mail),
         search_emails=SearchEmails(mail),
@@ -159,6 +165,7 @@ def _bundle(mail: MailRepository, calendar: CalendarRepository, clock: Clock) ->
         count_emails=CountEmails(mail),
         top_senders=TopSenders(mail),
         list_largest_emails=ListLargestEmails(mail),
-        list_folders=ListFolders(InMemoryMailFolderRepository()),
+        list_folders=ListFolders(folder_repository),
+        list_custom_folders=ListCustomFolders(folder_repository),
         search_contacts=SearchContacts(InMemoryContactRepository()),
     )
