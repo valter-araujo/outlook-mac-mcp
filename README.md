@@ -90,7 +90,7 @@ Sorted alphabetically by tool name.
 | `list_upcoming_events` | 2026-09-15 | Returned the matching events, earliest first; confirmed both an all-day event and a timed event mapped correctly in the resolved time zone. |
 | `preview_event` | 2026-09-15, 2026-09-16 | Summary and token for a timed and an all-day event; a body well under the truncation threshold showed in full, verbatim, in the preview. |
 | `preview_event_update` | 2026-09-17 | A time change (10:00–10:30 -> 11:00–11:30) produced a diff summary showing only the changed field, old value -> new value. |
-| `search_emails` | 2026-09-14, 2026-09-15 | A term matching several emails returned an exact total; `scope=subject` and `scope=sender` each returned a narrower, still-exact subset; a term trying to break out of the phrase returned empty with no 400. |
+| `search_emails` | 2026-09-14, 2026-09-15, 2026-09-17 | A term matching several emails returned an exact total; `scope=subject` and `scope=sender` each returned a narrower, still-exact subset; a term trying to break out of the phrase returned empty with no 400. Passing `next_page_token` back as `page_token` returned a genuinely different second page (a different date window, no items repeated from the first), with `total`/`total_is_exact` still accurate on that page. |
 | `top_senders` | 2026-09-15 | A full inbox scan hit the configured ceiling with `coverage_is_complete=false`; the client reported the partial coverage explicitly, as the description asks. |
 | `update_event` | 2026-09-17 | Applied the previewed time change (10:00–10:30 -> 11:00–11:30) exactly; the updated event reflected only that change. |
 
