@@ -70,3 +70,39 @@ def test_wires_nothing_when_write_is_off_even_if_delete_is_on() -> None:
         ).calendar_write
         is None
     )
+
+
+def settings_with_mail_draft(*, mail_draft_enabled: bool, write_enabled: bool = False) -> Settings:
+    return Settings(
+        client_id="a-client-id",
+        timezone=ZoneInfo("Europe/Lisbon"),
+        calendar_write_enabled=write_enabled,
+        calendar_delete_enabled=False,
+        mail_draft_enabled=mail_draft_enabled,
+    )
+
+
+def test_wires_no_mail_draft_use_cases_when_the_flag_is_off() -> None:
+    use_cases = build_use_cases(settings_with_mail_draft(mail_draft_enabled=False))
+
+    assert use_cases.mail_draft is None
+
+
+def test_wires_the_mail_draft_use_cases_when_the_flag_is_on() -> None:
+    use_cases = build_use_cases(settings_with_mail_draft(mail_draft_enabled=True))
+
+    assert use_cases.mail_draft is not None
+
+
+def test_the_draft_flag_wires_no_calendar_write_use_cases() -> None:
+    use_cases = build_use_cases(settings_with_mail_draft(mail_draft_enabled=True))
+
+    assert use_cases.calendar_write is None
+
+
+def test_calendar_write_wires_no_mail_draft_use_cases() -> None:
+    use_cases = build_use_cases(
+        settings_with_mail_draft(mail_draft_enabled=False, write_enabled=True)
+    )
+
+    assert use_cases.mail_draft is None

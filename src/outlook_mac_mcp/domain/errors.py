@@ -40,3 +40,12 @@ class EventWriteUnconfirmedError(OutlookMcpError):
     mistaken for, since a caller who believes nothing happened has every reason to
     retry, and a retry after a write that actually succeeded creates a duplicate.
     """
+
+
+class MailDraftWriteUnconfirmedError(OutlookMcpError):
+    """A draft reached the mailbox and was saved, but the response describing it could
+    not be read afterward.
+
+    Same reasoning as EventWriteUnconfirmedError: the write already happened, and a
+    caller who reads a bare read error as "nothing was saved" retries into a duplicate.
+    """

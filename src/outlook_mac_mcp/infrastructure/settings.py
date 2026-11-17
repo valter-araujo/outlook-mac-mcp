@@ -16,6 +16,7 @@ CLIENT_ID_ENV_VAR = "OUTLOOK_MCP_CLIENT_ID"
 TIMEZONE_ENV_VAR = "OUTLOOK_MCP_TIMEZONE"
 CALENDAR_WRITE_ENV_VAR = "OUTLOOK_MCP_ENABLE_CALENDAR_WRITE"
 CALENDAR_DELETE_ENV_VAR = "OUTLOOK_MCP_ENABLE_CALENDAR_DELETE"
+MAIL_DRAFT_ENV_VAR = "OUTLOOK_MCP_ENABLE_MAIL_DRAFT"
 
 # Only these spellings, so a typo such as "yes" or "on" cannot silently leave a capability
 # off when the user meant it on, nor be read as on when they meant off.
@@ -29,6 +30,7 @@ class Settings:
     timezone: ZoneInfo
     calendar_write_enabled: bool
     calendar_delete_enabled: bool
+    mail_draft_enabled: bool = False
 
 
 def load_settings(environment: Mapping[str, str]) -> Settings:
@@ -37,6 +39,7 @@ def load_settings(environment: Mapping[str, str]) -> Settings:
         timezone=resolve_timezone(environment),
         calendar_write_enabled=read_calendar_write_flag(environment),
         calendar_delete_enabled=read_calendar_delete_flag(environment),
+        mail_draft_enabled=read_mail_draft_flag(environment),
     )
 
 
@@ -53,6 +56,16 @@ def read_calendar_delete_flag(environment: Mapping[str, str]) -> bool:
     silently enable it too.
     """
     return _read_boolean_flag(environment, CALENDAR_DELETE_ENV_VAR)
+
+
+def read_mail_draft_flag(environment: Mapping[str, str]) -> bool:
+    """Absent means off, and independent of the calendar flags.
+
+    It widens the token to Mail.ReadWrite, which can change and delete any message, not
+    only save drafts; that is a different blast radius from Calendars.ReadWrite, so
+    turning calendar write on must never turn this on with it.
+    """
+    return _read_boolean_flag(environment, MAIL_DRAFT_ENV_VAR)
 
 
 def _read_boolean_flag(environment: Mapping[str, str], env_var: str) -> bool:

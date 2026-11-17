@@ -8,10 +8,12 @@ from outlook_mac_mcp.infrastructure.settings import (
     CALENDAR_DELETE_ENV_VAR,
     CALENDAR_WRITE_ENV_VAR,
     CLIENT_ID_ENV_VAR,
+    MAIL_DRAFT_ENV_VAR,
     TIMEZONE_ENV_VAR,
     load_settings,
     read_calendar_delete_flag,
     read_calendar_write_flag,
+    read_mail_draft_flag,
     resolve_timezone,
 )
 
@@ -161,3 +163,50 @@ def test_loads_the_calendar_delete_flag_with_the_rest() -> None:
     )
 
     assert loaded.calendar_delete_enabled is True
+
+
+def test_mail_draft_is_off_when_the_flag_is_absent() -> None:
+    assert read_mail_draft_flag({}) is False
+
+
+@pytest.mark.parametrize("value", ["true", "1", "TRUE", " true "])
+def test_mail_draft_is_on_for_an_explicit_true(value: str) -> None:
+    assert read_mail_draft_flag({MAIL_DRAFT_ENV_VAR: value}) is True
+
+
+@pytest.mark.parametrize("value", ["false", "0", ""])
+def test_mail_draft_is_off_for_an_explicit_false(value: str) -> None:
+    assert read_mail_draft_flag({MAIL_DRAFT_ENV_VAR: value}) is False
+
+
+@pytest.mark.parametrize("value", ["yes", "on", "enabled"])
+def test_rejects_a_mail_draft_flag_value_that_is_neither_true_nor_false(value: str) -> None:
+    with pytest.raises(ConfigurationError, match=MAIL_DRAFT_ENV_VAR):
+        read_mail_draft_flag({MAIL_DRAFT_ENV_VAR: value})
+
+
+def test_mail_draft_stays_off_when_both_calendar_flags_are_on() -> None:
+    """The draft flag widens the token to Mail.ReadWrite, so no calendar flag implies it."""
+    loaded = load_settings(
+        {
+            CLIENT_ID_ENV_VAR: "a-client-id",
+            TIMEZONE_ENV_VAR: "UTC",
+            CALENDAR_WRITE_ENV_VAR: "true",
+            CALENDAR_DELETE_ENV_VAR: "true",
+        }
+    )
+
+    assert loaded.mail_draft_enabled is False
+
+
+def test_loads_the_mail_draft_flag_with_the_rest() -> None:
+    loaded = load_settings(
+        {
+            CLIENT_ID_ENV_VAR: "a-client-id",
+            TIMEZONE_ENV_VAR: "UTC",
+            MAIL_DRAFT_ENV_VAR: "true",
+        }
+    )
+
+    assert loaded.mail_draft_enabled is True
+    assert loaded.calendar_write_enabled is False

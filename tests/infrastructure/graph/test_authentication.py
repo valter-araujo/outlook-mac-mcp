@@ -9,6 +9,7 @@ import pytest
 
 from outlook_mac_mcp.infrastructure.graph.authentication import (
     CALENDAR_WRITE_SCOPE,
+    MAIL_DRAFT_SCOPE,
     READ_SCOPES,
     DeviceCodeAuthenticator,
     DeviceCodePrompt,
@@ -210,3 +211,37 @@ def test_signs_in_against_the_real_identity_platform() -> None:
     authenticator.sign_in(lambda prompt: print(prompt, file=sys.stderr))
 
     assert authenticator.get_access_token()
+
+
+def settings_with_mail_draft(*, mail_draft: bool, calendar_write: bool = False) -> Settings:
+    return Settings(
+        client_id="a-client-id",
+        timezone=ZoneInfo("UTC"),
+        calendar_write_enabled=calendar_write,
+        calendar_delete_enabled=False,
+        mail_draft_enabled=mail_draft,
+    )
+
+
+def test_requests_no_mail_write_scope_when_the_draft_flag_is_off() -> None:
+    scopes = required_scopes(settings_with_mail_draft(mail_draft=False, calendar_write=True))
+
+    assert MAIL_DRAFT_SCOPE not in scopes
+
+
+def test_adds_the_mail_write_scope_when_the_draft_flag_is_on() -> None:
+    scopes = required_scopes(settings_with_mail_draft(mail_draft=True))
+
+    assert MAIL_DRAFT_SCOPE in scopes
+    assert CALENDAR_WRITE_SCOPE not in scopes
+
+
+def test_adds_both_write_scopes_when_both_flags_are_on() -> None:
+    scopes = required_scopes(settings_with_mail_draft(mail_draft=True, calendar_write=True))
+
+    assert scopes == (*READ_SCOPES, CALENDAR_WRITE_SCOPE, MAIL_DRAFT_SCOPE)
+
+
+@pytest.mark.parametrize("reserved_scope", RESERVED_SCOPES)
+def test_never_requests_reserved_scopes_with_the_draft_flag_on(reserved_scope: str) -> None:
+    assert reserved_scope not in required_scopes(settings_with_mail_draft(mail_draft=True))

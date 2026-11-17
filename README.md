@@ -43,6 +43,7 @@ automation is unavailable. This was the deciding factor.
 | Authority | `https://login.microsoftonline.com/consumers` |
 | Scopes requested by default | `Mail.Read`, `Calendars.Read`, `Contacts.Read`, `offline_access`, `User.Read` |
 | Scope added by `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` | `Calendars.ReadWrite` (see [Optional: calendar write](#optional-calendar-write)) |
+| Scope added by `OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true` | `Mail.ReadWrite` (see [Optional: email drafts](#optional-email-drafts)) |
 | Admin consent | Not required — every scope above is user-consentable |
 
 `offline_access`, `openid` and `profile` are reserved scopes: MSAL appends them
@@ -120,7 +121,9 @@ Search quoting is additionally covered by a live positive-control check, see
 
 ## Tools
 
-Read tools are always registered. The four tools marked `v2, flagged` register only
+Read tools are always registered. `preview_draft` and `create_draft`, marked
+`v2, flagged + mail draft`, register only when `OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true` (see
+[Optional: email drafts](#optional-email-drafts)). The four tools marked `v2, flagged` register only
 when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 [Optional: calendar write](#optional-calendar-write)). `preview_event_deletion` and
 `delete_event`, marked `v2, flagged + calendar delete`, additionally need
@@ -129,6 +132,7 @@ when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 
 | Tool | What it does |
 |---|---|
+| `create_draft` (v2, flagged + mail draft) | Save the email draft previewed under a token from `preview_draft` in the Drafts folder. Never sends. |
 | `count_emails` | Count emails matching the same filters as `list_emails`, exactly, without listing them. |
 | `create_event` (v2, flagged) | Create the event previewed under a token from `preview_event`. |
 | `delete_event` (v2, flagged + calendar delete) | Delete the event previewed under a token from `preview_event_deletion`. Irreversible. |
@@ -139,6 +143,7 @@ when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 | `list_todays_events` | List today's calendar events, earliest first. |
 | `list_unread_emails` | List unread emails in a folder, newest first. |
 | `list_upcoming_events` | List calendar events from now through 1–30 days ahead. |
+| `preview_draft` (v2, flagged + mail draft) | Validate an email draft and return a token and a summary, without saving it. |
 | `preview_event` (v2, flagged) | Validate a new event and return a token and a summary, without creating it. |
 | `preview_event_deletion` (v2, flagged + calendar delete) | Fetch an existing event and return a token and a summary showing every field, unabbreviated, without deleting anything. |
 | `preview_event_update` (v2, flagged) | Fetch an existing event, validate the requested changes, and return a token and a diff summary (old value -> new value, changed fields only), without applying anything. |
@@ -389,7 +394,8 @@ Three things this configuration has to get right:
 Restart Claude Desktop. `list_unread_emails` and the other read tools should appear in
 the tool list; the four create/update tools appear only with the write flag on, and
 `preview_event_deletion`/`delete_event` need the delete flag on top of that (see
-[Optional: calendar delete](#optional-calendar-delete)).
+[Optional: calendar delete](#optional-calendar-delete)); `preview_draft`/`create_draft`
+appear only with the mail draft flag on (see [Optional: email drafts](#optional-email-drafts)).
 
 ### Optional: log level
 
@@ -486,6 +492,47 @@ removed. This matters most when two similar events exist and only their full det
 tells them apart. `delete_event` takes only that token and deletes the event; this
 cannot be undone by the server. The pair follows the same token rules as create and
 update — single use, its own namespace, refused by every other pair's apply tool.
+
+### Optional: email drafts
+
+Off by default, and independent of both calendar flags. Setting
+`OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true` in the `env` block does two things: the server
+requests the `Mail.ReadWrite` scope in addition to the read scopes, and it registers
+`preview_draft` and `create_draft`. Accepted values are `true`, `false`, `1` and `0`;
+anything else stops the server with a `ConfigurationError`.
+
+**Read this before enabling it.** `Mail.ReadWrite` is the narrowest scope Graph offers
+for saving a draft, but it is broader than what this server does with it: the token
+could also change or delete any message in the mailbox. The server never does — the one
+write call in the code is `POST /me/messages`, which creates an unsent message, and
+there is no send, update or delete call for mail anywhere. The restraint is in the code
+and in the flag being off by default, not in the scope. Revoke the consent at
+<https://account.live.com/consent/Manage> if you stop using the feature.
+
+Because the scope set changes, the cached token no longer satisfies it until you sign
+in again with the flag set in the same shell and approve the new consent prompt:
+
+```sh
+export OUTLOOK_MCP_CLIENT_ID=<your client id>
+export OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true
+uv run outlook-mac-mcp sign-in
+```
+
+The pair is a preview-then-confirm handshake with its own token namespace, like the
+calendar pairs, so a calendar token is refused by `create_draft` and the reverse.
+
+1. `preview_draft` takes a subject, a plain-text body (up to 32,768 characters, no HTML),
+   at least one `to` address and optional `cc` addresses (50 recipients in total),
+   validates them, and returns a one-line summary plus an opaque token. Nothing is
+   written.
+2. `create_draft` takes only that token and saves the message in the Drafts folder. Its
+   result states that the draft was **not sent**.
+
+Sending is deliberately manual: you review the draft in Outlook and press send yourself.
+That is the defence against an email written to talk a model into mailing someone — the
+worst a hostile instruction can produce is a draft you see first. As with every write
+tool, the descriptions instruct the client to get your explicit confirmation of every
+detail before previewing when any of it came from email or web content.
 
 ### Troubleshooting
 

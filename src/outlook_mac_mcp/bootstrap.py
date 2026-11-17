@@ -1,5 +1,6 @@
 from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
+from outlook_mac_mcp.application.create_mail_draft import CreateMailDraft
 from outlook_mac_mcp.application.delete_event import DeleteEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.event_deletion_draft import EventDeletionDraft
@@ -13,9 +14,11 @@ from outlook_mac_mcp.application.list_largest_emails import ListLargestEmails
 from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
+from outlook_mac_mcp.application.mail_draft_preview import MailDraftPreview
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.preview_event_deletion import PreviewEventDeletion
 from outlook_mac_mcp.application.preview_event_update import PreviewEventUpdate
+from outlook_mac_mcp.application.preview_mail_draft import PreviewMailDraft
 from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.application.search_contacts import SearchContacts
 from outlook_mac_mcp.application.search_emails import SearchEmails
@@ -26,11 +29,13 @@ from outlook_mac_mcp.infrastructure.graph.calendar_repository import GraphCalend
 from outlook_mac_mcp.infrastructure.graph.calendar_writer import GraphCalendarWriter
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.contact_repository import GraphContactRepository
+from outlook_mac_mcp.infrastructure.graph.mail_draft_writer import GraphMailDraftWriter
 from outlook_mac_mcp.infrastructure.graph.mail_folder_repository import GraphMailFolderRepository
 from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailRepository
 from outlook_mac_mcp.infrastructure.settings import Settings
 from outlook_mac_mcp.infrastructure.system_clock import SystemClock
 from outlook_mac_mcp.interface.mcp.calendar_write_use_cases import CalendarWriteUseCases
+from outlook_mac_mcp.interface.mcp.mail_draft_use_cases import MailDraftUseCases
 from outlook_mac_mcp.interface.mcp.use_cases import UseCases
 
 
@@ -48,6 +53,7 @@ def build_use_cases(settings: Settings) -> UseCases:
     calendar = GraphCalendarRepository(client, settings.timezone)
     clock = SystemClock(settings.timezone)
     write = _calendar_write(client, settings) if settings.calendar_write_enabled else None
+    mail_draft = _mail_draft(client) if settings.mail_draft_enabled else None
     return UseCases(
         list_unread_emails=ListUnreadEmails(mail),
         search_emails=SearchEmails(mail),
@@ -63,6 +69,7 @@ def build_use_cases(settings: Settings) -> UseCases:
         resolve_folders=ResolveFolders(folders),
         search_contacts=SearchContacts(contacts),
         calendar_write=write,
+        mail_draft=mail_draft,
     )
 
 
@@ -81,6 +88,16 @@ def _calendar_write(client: GraphClient, settings: Settings) -> CalendarWriteUse
         update_event=UpdateEvent(update_drafts, writer),
         preview_event_deletion=preview_event_deletion,
         delete_event=delete_event,
+    )
+
+
+def _mail_draft(client: GraphClient) -> MailDraftUseCases:
+    """Its own draft store, so a calendar token is never a key in this one."""
+    drafts: DraftStore[MailDraftPreview] = DraftStore()
+    writer = GraphMailDraftWriter(client)
+    return MailDraftUseCases(
+        preview_mail_draft=PreviewMailDraft(drafts),
+        create_mail_draft=CreateMailDraft(drafts, writer),
     )
 
 
