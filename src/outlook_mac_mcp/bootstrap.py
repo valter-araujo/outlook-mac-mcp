@@ -1,6 +1,7 @@
 from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.create_mail_draft import CreateMailDraft
+from outlook_mac_mcp.application.create_reply_draft import CreateReplyDraft
 from outlook_mac_mcp.application.delete_event import DeleteEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.event_deletion_draft import EventDeletionDraft
@@ -19,6 +20,8 @@ from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.preview_event_deletion import PreviewEventDeletion
 from outlook_mac_mcp.application.preview_event_update import PreviewEventUpdate
 from outlook_mac_mcp.application.preview_mail_draft import PreviewMailDraft
+from outlook_mac_mcp.application.preview_reply_draft import PreviewReplyDraft
+from outlook_mac_mcp.application.reply_draft_preview import ReplyDraftPreview
 from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.application.search_contacts import SearchContacts
 from outlook_mac_mcp.application.search_emails import SearchEmails
@@ -32,6 +35,7 @@ from outlook_mac_mcp.infrastructure.graph.contact_repository import GraphContact
 from outlook_mac_mcp.infrastructure.graph.mail_draft_writer import GraphMailDraftWriter
 from outlook_mac_mcp.infrastructure.graph.mail_folder_repository import GraphMailFolderRepository
 from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailRepository
+from outlook_mac_mcp.infrastructure.graph.reply_draft_writer import GraphReplyDraftWriter
 from outlook_mac_mcp.infrastructure.settings import Settings
 from outlook_mac_mcp.infrastructure.system_clock import SystemClock
 from outlook_mac_mcp.interface.mcp.calendar_write_use_cases import CalendarWriteUseCases
@@ -92,12 +96,18 @@ def _calendar_write(client: GraphClient, settings: Settings) -> CalendarWriteUse
 
 
 def _mail_draft(client: GraphClient) -> MailDraftUseCases:
-    """Its own draft store, so a calendar token is never a key in this one."""
+    """A store per pair, so neither a calendar token nor the other draft pair's token is
+    ever a key in it.
+    """
     drafts: DraftStore[MailDraftPreview] = DraftStore()
+    reply_drafts: DraftStore[ReplyDraftPreview] = DraftStore()
     writer = GraphMailDraftWriter(client)
+    reply_writer = GraphReplyDraftWriter(client)
     return MailDraftUseCases(
         preview_mail_draft=PreviewMailDraft(drafts),
         create_mail_draft=CreateMailDraft(drafts, writer),
+        preview_reply_draft=PreviewReplyDraft(reply_writer, reply_drafts),
+        create_reply_draft=CreateReplyDraft(reply_drafts, reply_writer),
     )
 
 

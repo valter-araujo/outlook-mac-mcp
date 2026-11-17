@@ -6,6 +6,7 @@ from outlook_mac_mcp.application.clock import Clock
 from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.create_mail_draft import CreateMailDraft
+from outlook_mac_mcp.application.create_reply_draft import CreateReplyDraft
 from outlook_mac_mcp.application.delete_event import DeleteEvent
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.event_deletion_draft import EventDeletionDraft
@@ -26,10 +27,13 @@ from outlook_mac_mcp.application.ports.contact_repository import ContactReposito
 from outlook_mac_mcp.application.ports.mail_draft_writer import MailDraftWriter
 from outlook_mac_mcp.application.ports.mail_folder_repository import MailFolderRepository
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
+from outlook_mac_mcp.application.ports.reply_draft_writer import ReplyDraftWriter
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.preview_event_deletion import PreviewEventDeletion
 from outlook_mac_mcp.application.preview_event_update import PreviewEventUpdate
 from outlook_mac_mcp.application.preview_mail_draft import PreviewMailDraft
+from outlook_mac_mcp.application.preview_reply_draft import PreviewReplyDraft
+from outlook_mac_mcp.application.reply_draft_preview import ReplyDraftPreview
 from outlook_mac_mcp.application.resolve_folders import ResolveFolders
 from outlook_mac_mcp.application.search_contacts import SearchContacts
 from outlook_mac_mcp.application.search_emails import SearchEmails
@@ -43,6 +47,7 @@ from tests.fakes.in_memory_calendar_repository import InMemoryCalendarRepository
 from tests.fakes.in_memory_contact_repository import InMemoryContactRepository
 from tests.fakes.in_memory_mail_folder_repository import InMemoryMailFolderRepository
 from tests.fakes.in_memory_mail_repository import InMemoryMailRepository
+from tests.fakes.in_memory_reply_draft_writer import InMemoryReplyDraftWriter
 
 FROZEN_NOW = datetime(2026, 9, 15, 15, 42, tzinfo=ZoneInfo("America/Sao_Paulo"))
 
@@ -133,16 +138,23 @@ def calendar_write_use_cases_without_deletion(writer: CalendarWriter) -> UseCase
     )
 
 
-def mail_draft_use_cases(writer: MailDraftWriter) -> UseCases:
-    """A bundle with the draft pair wired to `writer` over its own fresh draft store and
-    calendar write left unset, as if only the draft flag were on.
+def mail_draft_use_cases(
+    writer: MailDraftWriter, reply_writer: ReplyDraftWriter | None = None
+) -> UseCases:
+    """A bundle with the draft pairs wired to `writer` and `reply_writer`, each over its
+    own fresh draft store, and calendar write left unset, as if only the draft flag were
+    on. Omitting `reply_writer` gives the reply pair an empty mailbox.
     """
     drafts: DraftStore[MailDraftPreview] = DraftStore()
+    reply_drafts: DraftStore[ReplyDraftPreview] = DraftStore()
+    replies = reply_writer if reply_writer is not None else InMemoryReplyDraftWriter()
     return replace(
         mail_only_use_cases(InMemoryMailRepository()),
         mail_draft=MailDraftUseCases(
             preview_mail_draft=PreviewMailDraft(drafts),
             create_mail_draft=CreateMailDraft(drafts, writer),
+            preview_reply_draft=PreviewReplyDraft(replies, reply_drafts),
+            create_reply_draft=CreateReplyDraft(reply_drafts, replies),
         ),
     )
 

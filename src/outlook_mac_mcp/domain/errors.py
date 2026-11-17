@@ -49,3 +49,9 @@ class MailDraftWriteUnconfirmedError(OutlookMcpError):
     Same reasoning as EventWriteUnconfirmedError: the write already happened, and a
     caller who reads a bare read error as "nothing was saved" retries into a duplicate.
     """
+
+
+class NotADraftError(OutlookMcpError):
+    """The message exists but is not an unsent draft in the Drafts folder, so the draft
+    tools refuse to touch it.
+    """

@@ -28,3 +28,15 @@ def read_email_address(email_address: Mapping[str, Any]) -> EmailAddress:
         address=optional_text(email_address, "address"),
         display_name=optional_text(email_address, "name"),
     )
+
+
+def to_email_addresses(recipients: object) -> tuple[EmailAddress, ...]:
+    """Read a Graph recipient collection such as `toRecipients` or `replyTo`.
+
+    An absent or malformed collection is empty, and an entry with no address is dropped:
+    either way there is nobody a reply could be addressed to.
+    """
+    if not isinstance(recipients, list):
+        return ()
+    addresses = (to_email_address(recipient) for recipient in recipients)
+    return tuple(address for address in addresses if address.address)

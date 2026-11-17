@@ -31,7 +31,9 @@ therefore unsupported by the official add-in and the Microsoft 365 connector.
   v1: `Mail.Read`, `Calendars.Read`, `Contacts.Read`, `offline_access`, `User.Read`.
   Write scopes enter the code only with a new version, new consent, and a config flag
   that is off by default. Mail drafts add `Mail.ReadWrite`, which is broader than the
-  one call made with it (`POST /me/messages`); no other mail write call may be added.
+  calls made with it: `POST /me/messages` (new draft) and `POST
+  /me/messages/{id}/createReply` or `/createReplyAll` (reply draft). No other mail
+  write call may be added, and no send call ever.
 - Every input validated with pydantic (type, length, email format, dates) before it
   becomes a query. Search parameters are escaped and parameterized; never concatenated
   into `$filter` or `$search`.

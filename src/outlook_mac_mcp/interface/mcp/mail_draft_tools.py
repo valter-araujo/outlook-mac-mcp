@@ -15,6 +15,7 @@ from outlook_mac_mcp.interface.mcp.preview_draft_input import (
     PreviewDraftInput,
     ToRecipients,
 )
+from outlook_mac_mcp.interface.mcp.reply_draft_tools import register_reply_draft_tools
 from outlook_mac_mcp.interface.mcp.write_confirmation_rule import write_confirmation_rule
 
 PREVIEW_DRAFT_TOOL = "preview_draft"
@@ -39,6 +40,7 @@ CREATE_DRAFT_DESCRIPTION = (
 def register_mail_draft_tools(server: MCPServer, use_cases: MailDraftUseCases) -> None:
     _register_preview_draft(server, use_cases.preview_mail_draft)
     _register_create_draft(server, use_cases.create_mail_draft)
+    register_reply_draft_tools(server, use_cases.preview_reply_draft, use_cases.create_reply_draft)
 
 
 def _register_preview_draft(server: MCPServer, use_case: PreviewMailDraft) -> None:

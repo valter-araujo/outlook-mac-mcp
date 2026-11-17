@@ -13,10 +13,10 @@ def to_mail_draft_payload(new_draft: NewMailDraft) -> dict[str, Any]:
     return {
         "subject": new_draft.subject,
         "body": {"contentType": "text", "content": new_draft.body},
-        "toRecipients": [_recipient(recipient) for recipient in new_draft.to],
-        "ccRecipients": [_recipient(recipient) for recipient in new_draft.cc],
+        "toRecipients": [recipient_payload(recipient) for recipient in new_draft.to],
+        "ccRecipients": [recipient_payload(recipient) for recipient in new_draft.cc],
     }
 
 
-def _recipient(recipient: EmailAddress) -> dict[str, Any]:
+def recipient_payload(recipient: EmailAddress) -> dict[str, Any]:
     return {"emailAddress": {"address": recipient.address}}

@@ -106,3 +106,10 @@ def test_calendar_write_wires_no_mail_draft_use_cases() -> None:
     )
 
     assert use_cases.mail_draft is None
+
+
+def test_the_draft_flag_wires_the_reply_pair_too() -> None:
+    use_cases = build_use_cases(settings_with_mail_draft(mail_draft_enabled=True))
+
+    assert use_cases.mail_draft is not None
+    assert use_cases.mail_draft.preview_reply_draft is not None
