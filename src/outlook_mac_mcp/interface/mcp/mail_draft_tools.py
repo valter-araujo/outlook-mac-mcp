@@ -5,6 +5,7 @@ from outlook_mac_mcp.application.create_mail_draft import CreateMailDraft
 from outlook_mac_mcp.application.preview_mail_draft import PreviewMailDraft
 from outlook_mac_mcp.domain.errors import OutlookMcpError
 from outlook_mac_mcp.interface.mcp.created_mail_draft_view import CreatedMailDraftView
+from outlook_mac_mcp.interface.mcp.draft_deletion_tools import register_draft_deletion_tools
 from outlook_mac_mcp.interface.mcp.mail_draft_preview_view import MailDraftPreviewView
 from outlook_mac_mcp.interface.mcp.mail_draft_use_cases import MailDraftUseCases
 from outlook_mac_mcp.interface.mcp.observability import observed_tool_call
@@ -41,6 +42,10 @@ def register_mail_draft_tools(server: MCPServer, use_cases: MailDraftUseCases) -
     _register_preview_draft(server, use_cases.preview_mail_draft)
     _register_create_draft(server, use_cases.create_mail_draft)
     register_reply_draft_tools(server, use_cases.preview_reply_draft, use_cases.create_reply_draft)
+    if use_cases.preview_draft_deletion is not None and use_cases.delete_draft is not None:
+        register_draft_deletion_tools(
+            server, use_cases.preview_draft_deletion, use_cases.delete_draft
+        )
 
 
 def _register_preview_draft(server: MCPServer, use_case: PreviewMailDraft) -> None:

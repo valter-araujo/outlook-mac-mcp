@@ -7,7 +7,9 @@ from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.create_mail_draft import CreateMailDraft
 from outlook_mac_mcp.application.create_reply_draft import CreateReplyDraft
+from outlook_mac_mcp.application.delete_draft import DeleteDraft
 from outlook_mac_mcp.application.delete_event import DeleteEvent
+from outlook_mac_mcp.application.draft_deletion_preview import DraftDeletionPreview
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.event_deletion_draft import EventDeletionDraft
 from outlook_mac_mcp.application.event_draft import EventDraft
@@ -24,10 +26,12 @@ from outlook_mac_mcp.application.mail_draft_preview import MailDraftPreview
 from outlook_mac_mcp.application.ports.calendar_repository import CalendarRepository
 from outlook_mac_mcp.application.ports.calendar_writer import CalendarWriter
 from outlook_mac_mcp.application.ports.contact_repository import ContactRepository
+from outlook_mac_mcp.application.ports.draft_deleter import DraftDeleter
 from outlook_mac_mcp.application.ports.mail_draft_writer import MailDraftWriter
 from outlook_mac_mcp.application.ports.mail_folder_repository import MailFolderRepository
 from outlook_mac_mcp.application.ports.mail_repository import MailRepository
 from outlook_mac_mcp.application.ports.reply_draft_writer import ReplyDraftWriter
+from outlook_mac_mcp.application.preview_draft_deletion import PreviewDraftDeletion
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.preview_event_deletion import PreviewEventDeletion
 from outlook_mac_mcp.application.preview_event_update import PreviewEventUpdate
@@ -139,14 +143,18 @@ def calendar_write_use_cases_without_deletion(writer: CalendarWriter) -> UseCase
 
 
 def mail_draft_use_cases(
-    writer: MailDraftWriter, reply_writer: ReplyDraftWriter | None = None
+    writer: MailDraftWriter,
+    reply_writer: ReplyDraftWriter | None = None,
+    deleter: DraftDeleter | None = None,
 ) -> UseCases:
     """A bundle with the draft pairs wired to `writer` and `reply_writer`, each over its
     own fresh draft store, and calendar write left unset, as if only the draft flag were
-    on. Omitting `reply_writer` gives the reply pair an empty mailbox.
+    on. Omitting `reply_writer` gives the reply pair an empty mailbox; omitting `deleter`
+    leaves the deletion pair unset, as if the draft delete flag were off.
     """
     drafts: DraftStore[MailDraftPreview] = DraftStore()
     reply_drafts: DraftStore[ReplyDraftPreview] = DraftStore()
+    deletions: DraftStore[DraftDeletionPreview] = DraftStore()
     replies = reply_writer if reply_writer is not None else InMemoryReplyDraftWriter()
     return replace(
         mail_only_use_cases(InMemoryMailRepository()),
@@ -155,6 +163,8 @@ def mail_draft_use_cases(
             create_mail_draft=CreateMailDraft(drafts, writer),
             preview_reply_draft=PreviewReplyDraft(replies, reply_drafts),
             create_reply_draft=CreateReplyDraft(reply_drafts, replies),
+            preview_draft_deletion=PreviewDraftDeletion(deleter, deletions) if deleter else None,
+            delete_draft=DeleteDraft(deletions, deleter) if deleter else None,
         ),
     )
 

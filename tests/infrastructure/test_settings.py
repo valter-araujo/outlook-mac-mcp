@@ -8,11 +8,13 @@ from outlook_mac_mcp.infrastructure.settings import (
     CALENDAR_DELETE_ENV_VAR,
     CALENDAR_WRITE_ENV_VAR,
     CLIENT_ID_ENV_VAR,
+    MAIL_DRAFT_DELETE_ENV_VAR,
     MAIL_DRAFT_ENV_VAR,
     TIMEZONE_ENV_VAR,
     load_settings,
     read_calendar_delete_flag,
     read_calendar_write_flag,
+    read_mail_draft_delete_flag,
     read_mail_draft_flag,
     resolve_timezone,
 )
@@ -210,3 +212,22 @@ def test_loads_the_mail_draft_flag_with_the_rest() -> None:
 
     assert loaded.mail_draft_enabled is True
     assert loaded.calendar_write_enabled is False
+
+
+def test_mail_draft_delete_is_off_when_the_flag_is_absent() -> None:
+    assert read_mail_draft_delete_flag({}) is False
+
+
+def test_mail_draft_delete_is_on_for_an_explicit_true() -> None:
+    assert read_mail_draft_delete_flag({MAIL_DRAFT_DELETE_ENV_VAR: "true"}) is True
+
+
+def test_rejects_a_mail_draft_delete_flag_value_that_is_neither_true_nor_false() -> None:
+    with pytest.raises(ConfigurationError, match=MAIL_DRAFT_DELETE_ENV_VAR):
+        read_mail_draft_delete_flag({MAIL_DRAFT_DELETE_ENV_VAR: "yes"})
+
+
+def test_the_draft_flag_does_not_turn_on_draft_delete() -> None:
+    loaded = load_settings({CLIENT_ID_ENV_VAR: "a-client-id", MAIL_DRAFT_ENV_VAR: "true"})
+
+    assert loaded.mail_draft_delete_enabled is False

@@ -72,13 +72,16 @@ def test_wires_nothing_when_write_is_off_even_if_delete_is_on() -> None:
     )
 
 
-def settings_with_mail_draft(*, mail_draft_enabled: bool, write_enabled: bool = False) -> Settings:
+def settings_with_mail_draft(
+    *, mail_draft_enabled: bool, write_enabled: bool = False, draft_delete_enabled: bool = False
+) -> Settings:
     return Settings(
         client_id="a-client-id",
         timezone=ZoneInfo("Europe/Lisbon"),
         calendar_write_enabled=write_enabled,
         calendar_delete_enabled=False,
         mail_draft_enabled=mail_draft_enabled,
+        mail_draft_delete_enabled=draft_delete_enabled,
     )
 
 
@@ -113,3 +116,27 @@ def test_the_draft_flag_wires_the_reply_pair_too() -> None:
 
     assert use_cases.mail_draft is not None
     assert use_cases.mail_draft.preview_reply_draft is not None
+
+
+def test_the_draft_flag_alone_wires_no_draft_deletion() -> None:
+    use_cases = build_use_cases(settings_with_mail_draft(mail_draft_enabled=True))
+
+    assert use_cases.mail_draft is not None
+    assert use_cases.mail_draft.delete_draft is None
+
+
+def test_both_draft_flags_wire_the_draft_deletion_pair() -> None:
+    use_cases = build_use_cases(
+        settings_with_mail_draft(mail_draft_enabled=True, draft_delete_enabled=True)
+    )
+
+    assert use_cases.mail_draft is not None
+    assert use_cases.mail_draft.delete_draft is not None
+
+
+def test_the_draft_delete_flag_alone_wires_nothing() -> None:
+    use_cases = build_use_cases(
+        settings_with_mail_draft(mail_draft_enabled=False, draft_delete_enabled=True)
+    )
+
+    assert use_cases.mail_draft is None

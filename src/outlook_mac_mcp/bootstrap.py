@@ -2,7 +2,9 @@ from outlook_mac_mcp.application.count_emails import CountEmails
 from outlook_mac_mcp.application.create_event import CreateEvent
 from outlook_mac_mcp.application.create_mail_draft import CreateMailDraft
 from outlook_mac_mcp.application.create_reply_draft import CreateReplyDraft
+from outlook_mac_mcp.application.delete_draft import DeleteDraft
 from outlook_mac_mcp.application.delete_event import DeleteEvent
+from outlook_mac_mcp.application.draft_deletion_preview import DraftDeletionPreview
 from outlook_mac_mcp.application.draft_store import DraftStore
 from outlook_mac_mcp.application.event_deletion_draft import EventDeletionDraft
 from outlook_mac_mcp.application.event_draft import EventDraft
@@ -16,6 +18,7 @@ from outlook_mac_mcp.application.list_todays_events import ListTodaysEvents
 from outlook_mac_mcp.application.list_unread_emails import ListUnreadEmails
 from outlook_mac_mcp.application.list_upcoming_events import ListUpcomingEvents
 from outlook_mac_mcp.application.mail_draft_preview import MailDraftPreview
+from outlook_mac_mcp.application.preview_draft_deletion import PreviewDraftDeletion
 from outlook_mac_mcp.application.preview_event import PreviewEvent
 from outlook_mac_mcp.application.preview_event_deletion import PreviewEventDeletion
 from outlook_mac_mcp.application.preview_event_update import PreviewEventUpdate
@@ -32,6 +35,7 @@ from outlook_mac_mcp.infrastructure.graph.calendar_repository import GraphCalend
 from outlook_mac_mcp.infrastructure.graph.calendar_writer import GraphCalendarWriter
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.contact_repository import GraphContactRepository
+from outlook_mac_mcp.infrastructure.graph.draft_deleter import GraphDraftDeleter
 from outlook_mac_mcp.infrastructure.graph.mail_draft_writer import GraphMailDraftWriter
 from outlook_mac_mcp.infrastructure.graph.mail_folder_repository import GraphMailFolderRepository
 from outlook_mac_mcp.infrastructure.graph.mail_repository import GraphMailRepository
@@ -57,7 +61,7 @@ def build_use_cases(settings: Settings) -> UseCases:
     calendar = GraphCalendarRepository(client, settings.timezone)
     clock = SystemClock(settings.timezone)
     write = _calendar_write(client, settings) if settings.calendar_write_enabled else None
-    mail_draft = _mail_draft(client) if settings.mail_draft_enabled else None
+    mail_draft = _mail_draft(client, settings) if settings.mail_draft_enabled else None
     return UseCases(
         list_unread_emails=ListUnreadEmails(mail),
         search_emails=SearchEmails(mail),
@@ -95,7 +99,7 @@ def _calendar_write(client: GraphClient, settings: Settings) -> CalendarWriteUse
     )
 
 
-def _mail_draft(client: GraphClient) -> MailDraftUseCases:
+def _mail_draft(client: GraphClient, settings: Settings) -> MailDraftUseCases:
     """A store per pair, so neither a calendar token nor the other draft pair's token is
     ever a key in it.
     """
@@ -103,12 +107,28 @@ def _mail_draft(client: GraphClient) -> MailDraftUseCases:
     reply_drafts: DraftStore[ReplyDraftPreview] = DraftStore()
     writer = GraphMailDraftWriter(client)
     reply_writer = GraphReplyDraftWriter(client)
+    preview_draft_deletion, delete_draft = _draft_deletion(client, settings)
     return MailDraftUseCases(
         preview_mail_draft=PreviewMailDraft(drafts),
         create_mail_draft=CreateMailDraft(drafts, writer),
         preview_reply_draft=PreviewReplyDraft(reply_writer, reply_drafts),
         create_reply_draft=CreateReplyDraft(reply_drafts, reply_writer),
+        preview_draft_deletion=preview_draft_deletion,
+        delete_draft=delete_draft,
     )
+
+
+def _draft_deletion(
+    client: GraphClient, settings: Settings
+) -> tuple[PreviewDraftDeletion, DeleteDraft] | tuple[None, None]:
+    """Gated by its own flag on top of the draft flag, so saving drafts never enables
+    deleting them by itself.
+    """
+    if not settings.mail_draft_delete_enabled:
+        return None, None
+    deletions: DraftStore[DraftDeletionPreview] = DraftStore()
+    deleter = GraphDraftDeleter(client)
+    return PreviewDraftDeletion(deleter, deletions), DeleteDraft(deletions, deleter)
 
 
 def _calendar_deletion(

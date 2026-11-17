@@ -1,11 +1,5 @@
-from http import HTTPStatus
-from typing import NoReturn
-from urllib.parse import quote
-
 from outlook_mac_mcp.domain.created_mail_draft import CreatedMailDraft
 from outlook_mac_mcp.domain.errors import (
-    EmailNotFoundError,
-    InvalidRequestError,
     MailDraftWriteUnconfirmedError,
 )
 from outlook_mac_mcp.domain.new_reply_draft import NewReplyDraft
@@ -15,14 +9,16 @@ from outlook_mac_mcp.domain.reply_source import ReplySource
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
 from outlook_mac_mcp.infrastructure.graph.errors import GraphRequestError, GraphResponseError
 from outlook_mac_mcp.infrastructure.graph.json_fields import optional_text, required_text
-from outlook_mac_mcp.infrastructure.graph.mail_repository import MALFORMED_ID_ERROR_CODE
+from outlook_mac_mcp.infrastructure.graph.message_path import (
+    message_path,
+    raise_message_lookup_error,
+)
 from outlook_mac_mcp.infrastructure.graph.reply_draft_payload import to_reply_draft_payload
 from outlook_mac_mcp.infrastructure.graph.reply_source_mapper import (
     REPLY_SOURCE_FIELDS,
     to_reply_source,
 )
 
-MESSAGES_PATH = "/me/messages"
 ME_PATH = "/me"
 OWN_ADDRESS_FIELDS = ("mail", "userPrincipalName")
 REPLY_ACTIONS = {ReplyMode.REPLY: "createReply", ReplyMode.REPLY_ALL: "createReplyAll"}
@@ -43,10 +39,10 @@ class GraphReplyDraftWriter:
     def get_reply_source(self, email_id: str) -> ReplySource:
         try:
             payload = self._client.get(
-                _message_path(email_id), {"$select": ",".join(REPLY_SOURCE_FIELDS)}
+                message_path(email_id), {"$select": ",".join(REPLY_SOURCE_FIELDS)}
             )
         except GraphRequestError as error:
-            _raise_lookup_error(error, email_id)
+            raise_message_lookup_error(error, email_id)
         return to_reply_source(payload)
 
     def get_own_addresses(self) -> frozenset[str]:
@@ -56,11 +52,11 @@ class GraphReplyDraftWriter:
         return frozenset(address_key(address) for address in addresses if address)
 
     def create_reply(self, draft: NewReplyDraft) -> CreatedMailDraft:
-        path = f"{_message_path(draft.source_id)}/{REPLY_ACTIONS[draft.mode]}"
+        path = f"{message_path(draft.source_id)}/{REPLY_ACTIONS[draft.mode]}"
         try:
             payload = self._client.post(path, to_reply_draft_payload(draft))
         except GraphRequestError as error:
-            _raise_lookup_error(error, draft.source_id)
+            raise_message_lookup_error(error, draft.source_id)
         try:
             return CreatedMailDraft(id=required_text(payload, "id"))
         except GraphResponseError as error:
@@ -68,16 +64,3 @@ class GraphReplyDraftWriter:
                 f"the reply was saved, but its id could not be read back afterward: {error}. "
                 "Check your Drafts folder directly before retrying."
             ) from error
-
-
-def _message_path(email_id: str) -> str:
-    """Percent-encoded for the same reason GraphMailRepository.get_by_id encodes it."""
-    return f"{MESSAGES_PATH}/{quote(email_id, safe='')}"
-
-
-def _raise_lookup_error(error: GraphRequestError, email_id: str) -> NoReturn:
-    if error.error_code == MALFORMED_ID_ERROR_CODE:
-        raise InvalidRequestError(f"malformed email id: {email_id}") from error
-    if error.status_code == HTTPStatus.NOT_FOUND:
-        raise EmailNotFoundError(f"no email with id {email_id}") from error
-    raise error
