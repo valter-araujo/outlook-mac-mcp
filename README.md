@@ -121,9 +121,12 @@ Search quoting is additionally covered by a live positive-control check, see
 
 ## Tools
 
-Read tools are always registered. `preview_draft` and `create_draft`, marked
-`v2, flagged + mail draft`, register only when `OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true` (see
-[Optional: email drafts](#optional-email-drafts)). The four tools marked `v2, flagged` register only
+Read tools are always registered. `preview_draft`, `create_draft`,
+`preview_reply_draft` and `create_reply_draft`, marked `v2, flagged + mail draft`,
+register only when `OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true` (see
+[Optional: email drafts](#optional-email-drafts)). `preview_draft_deletion` and
+`delete_draft`, marked `v2, flagged + draft delete`, additionally need
+`OUTLOOK_MCP_ENABLE_MAIL_DRAFT_DELETE=true`. The four tools marked `v2, flagged` register only
 when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 [Optional: calendar write](#optional-calendar-write)). `preview_event_deletion` and
 `delete_event`, marked `v2, flagged + calendar delete`, additionally need
@@ -134,7 +137,9 @@ when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 |---|---|
 | `create_draft` (v2, flagged + mail draft) | Save the email draft previewed under a token from `preview_draft` in the Drafts folder. Never sends. |
 | `count_emails` | Count emails matching the same filters as `list_emails`, exactly, without listing them. |
+| `create_reply_draft` (v2, flagged + mail draft) | Save the reply previewed under a token from `preview_reply_draft` in the original email's conversation, original quoted below. Never sends. |
 | `create_event` (v2, flagged) | Create the event previewed under a token from `preview_event`. |
+| `delete_draft` (v2, flagged + draft delete) | Move the draft previewed under a token from `preview_draft_deletion` to Deleted Items, after checking again that it is still an unsent draft in Drafts. |
 | `delete_event` (v2, flagged + calendar delete) | Delete the event previewed under a token from `preview_event_deletion`. Irreversible. |
 | `get_email` | Fetch one email by id, body included. |
 | `list_emails` | List emails in a folder with any combination of filters (read state, sender, date range, attachments), sorted newest or oldest, with an exact total. |
@@ -144,9 +149,11 @@ when `OUTLOOK_MCP_ENABLE_CALENDAR_WRITE=true` (see
 | `list_unread_emails` | List unread emails in a folder, newest first. |
 | `list_upcoming_events` | List calendar events from now through 1–30 days ahead. |
 | `preview_draft` (v2, flagged + mail draft) | Validate an email draft and return a token and a summary, without saving it. |
+| `preview_draft_deletion` (v2, flagged + draft delete) | Check that a message is an unsent draft in the Drafts folder and return a token and a summary, without deleting it. |
 | `preview_event` (v2, flagged) | Validate a new event and return a token and a summary, without creating it. |
 | `preview_event_deletion` (v2, flagged + calendar delete) | Fetch an existing event and return a token and a summary showing every field, unabbreviated, without deleting anything. |
 | `preview_event_update` (v2, flagged) | Fetch an existing event, validate the requested changes, and return a token and a diff summary (old value -> new value, changed fields only), without applying anything. |
+| `preview_reply_draft` (v2, flagged + mail draft) | Read an email and return a token, a summary, the final To and Cc lines of a reply or reply all (Reply-To honoured, your own address removed) and warnings such as a no-reply recipient, without saving anything. |
 | `search_contacts` | Search contacts by a display-name prefix or an exact email address. |
 | `search_emails` | Search a folder for a term, ranked by relevance, not by date. |
 | `top_senders` | Rank a folder's senders by how many emails each sent, scanning up to 10,000 matching emails per call. |
@@ -394,8 +401,9 @@ Three things this configuration has to get right:
 Restart Claude Desktop. `list_unread_emails` and the other read tools should appear in
 the tool list; the four create/update tools appear only with the write flag on, and
 `preview_event_deletion`/`delete_event` need the delete flag on top of that (see
-[Optional: calendar delete](#optional-calendar-delete)); `preview_draft`/`create_draft`
-appear only with the mail draft flag on (see [Optional: email drafts](#optional-email-drafts)).
+[Optional: calendar delete](#optional-calendar-delete)); the draft and reply-draft tools
+appear only with the mail draft flag on (see [Optional: email drafts](#optional-email-drafts)),
+and the draft deletion tools need the draft delete flag on top of that.
 
 ### Optional: log level
 
@@ -503,10 +511,12 @@ anything else stops the server with a `ConfigurationError`.
 
 **Read this before enabling it.** `Mail.ReadWrite` is the narrowest scope Graph offers
 for saving a draft, but it is broader than what this server does with it: the token
-could also change or delete any message in the mailbox. The server never does — the one
-write call in the code is `POST /me/messages`, which creates an unsent message, and
-there is no send, update or delete call for mail anywhere. The restraint is in the code
-and in the flag being off by default, not in the scope. Revoke the consent at
+could also change or delete any message in the mailbox. The server never does: its
+mail write calls are `POST /me/messages` (a new draft) and `createReply`/`createReplyAll`
+(a reply draft), all of which save an unsent message, plus, only behind a second flag,
+`DELETE` on a message verified to be an unsent draft in Drafts. There is no send or
+update call for mail anywhere. The restraint is in the code and in the flags being off
+by default, not in the scope. Revoke the consent at
 <https://account.live.com/consent/Manage> if you stop using the feature.
 
 Because the scope set changes, the cached token no longer satisfies it until you sign
@@ -528,6 +538,39 @@ calendar pairs, so a calendar token is refused by `create_draft` and the reverse
 2. `create_draft` takes only that token and saves the message in the Drafts folder. Its
    result states that the draft was **not sent**.
 
+#### Replies
+
+To answer an existing email, use the reply pair instead: a draft made with
+`preview_draft` is a new message, outside the conversation and without its recipients.
+
+1. `preview_reply_draft` takes the email's id (from any listing or search), `mode`
+   (`reply_all` by default, or `reply`), a plain-text `body` and optional `extra_to` /
+   `extra_cc`. It reads the original and returns a summary (subject with one `Re:`), the
+   final To and Cc lines and a list of warnings. Nothing is written.
+   - The reply goes to the message's Reply-To when it has one, otherwise to the sender;
+     reply all adds every original To recipient and keeps the original Cc line. Your
+     own address is removed and duplicates are dropped. Aliases of a personal account
+     are not visible to Graph, so a message sent to one of your aliases keeps that
+     alias on the list.
+   - A warning is raised when a recipient looks like an automated or no-reply address
+     (`noreply@…`, a bulk-mail host such as `someone@email.example.com`) or when
+     Reply-To redirects the reply away from the sender. It is a heuristic and never
+     blocks anything.
+2. `create_reply_draft` takes only that token. One `createReply`/`createReplyAll` call
+   saves the draft in the original conversation, with your text above the quoted
+   original and exactly the recipients the preview showed. Nothing is sent.
+
+Your text is sent to Graph as the reply's `comment`, so the original's HTML is never
+rebuilt by this server. Whether Graph escapes markup in that text is checked by a live
+test, `tests/infrastructure/graph/test_reply_draft_live.py`.
+
+#### Deleting a draft
+
+With `OUTLOOK_MCP_ENABLE_MAIL_DRAFT_DELETE=true` as well, `preview_draft_deletion` and
+`delete_draft` clean up a draft saved by mistake. Only an unsent message in the Drafts
+folder is accepted, checked at preview and again right before the delete. The draft
+moves to Deleted Items, where you can recover it. No extra scope or sign-in is needed.
+
 Sending is deliberately manual: you review the draft in Outlook and press send yourself.
 That is the defence against an email written to talk a model into mailing someone — the
 worst a hostile instruction can produce is a draft you see first. As with every write
@@ -541,6 +584,7 @@ detail before previewing when any of it came from email or web content.
 | Tool fails with "no usable cached credential" | Step 3 was not completed, or the token was revoked. Run `sign-in` again. |
 | Server fails to start with `ConfigurationError` | `OUTLOOK_MCP_CLIENT_ID` is missing from the `env` block, or `OUTLOOK_MCP_TIMEZONE` is not an IANA time zone name. |
 | Server does not appear in Claude Desktop | `uv` is not on the launcher's `PATH`; use an absolute path for `command`. |
+| A flagged tool is missing although the flag is in `claude_desktop_config.json` | The file was edited while Claude Desktop was running and the app kept its old copy. Quit it fully (Cmd+Q), make sure no `outlook-mac-mcp` process is left, edit the file, then reopen. Check the running server with `ps eww -o command= -p <pid>`. |
 
 ## Disclaimer
 
