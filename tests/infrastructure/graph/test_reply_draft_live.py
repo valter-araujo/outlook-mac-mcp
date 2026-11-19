@@ -3,9 +3,9 @@ r"""Live checks of how Graph saves a reply draft built by GraphReplyDraftWriter.
 The unit tests only assert the bytes we send. Three properties depend on how Graph
 treats them and are checked here against a real mailbox:
 
-1. Escaping, with a positive control: the reply's `comment` carries markup. If Graph
-   inserted it as HTML, the saved body would contain a live `<b>` tag; it must instead
-   contain the escaped text.
+1. Escaping, with a positive control: the reply's text carries markup. Graph inserts
+   `comment` as HTML, so if our escaping failed the saved body would contain a live
+   `<b>` tag; it must instead contain the escaped text, and keep its line break.
 2. Threading and recipients: the draft must be in the original's conversation, and
    carry exactly the To and Cc lines we sent, not a list Graph recomputed.
 3. The source message's read state must not change. Reports on Microsoft Q&A say
@@ -16,7 +16,20 @@ This WRITES to the mailbox: it saves one reply draft and moves it to Deleted Ite
 afterwards. Point it at a message you own whose recipients you do not mind appearing
 on a draft, through OUTLOOK_MCP_LIVE_REPLY_SOURCE_ID (an id from list_emails).
 
-Not yet measured: run it and record the date and outcome here.
+Measured 2026-11-19 against a personal Outlook.com mailbox, before the escaping fix:
+
+    escaping             FAILED: `<b>MARKER</b>` was saved as a live tag, so Graph
+                         treats `comment` as HTML (only a bare `&` was re-serialized)
+    conversation         passed: the draft shared the original's conversationId
+    recipients           passed: To and Cc were exactly the lines sent
+    source read state    passed: unchanged (source with a human sender, one other
+                         recipient; the Q&A-reported flip did not occur)
+
+The failure led to to_comment_html in reply_draft_payload. Re-run after that fix and
+record the outcome below.
+
+Use a source the user did not send themselves: the read-state check replies all, but a
+message the user sent to nobody else would leave no recipient.
 
 Run with:
     OUTLOOK_MCP_LIVE_REPLY_SOURCE_ID=<id> OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true \
@@ -24,6 +37,7 @@ Run with:
 """
 
 import os
+import re
 import uuid
 from collections.abc import Iterator, Mapping
 from typing import Any
@@ -66,7 +80,7 @@ def saved(client: GraphClient, source_id: str) -> Iterator[tuple[str, str, NewRe
     draft = NewReplyDraft(
         source_id=source_id,
         mode=ReplyMode.REPLY_ALL,
-        body=f"<b>{marker}</b> & done",
+        body=f"<b>{marker}</b> & done\nsecond line",
         recipients=resolve_reply_recipients(
             source, ReplyMode.REPLY_ALL, writer.get_own_addresses()
         ),
@@ -95,6 +109,7 @@ def test_comment_markup_is_saved_as_escaped_text(
 
     assert f"&lt;b&gt;{marker}&lt;/b&gt;" in body
     assert f"<b>{marker}</b>" not in body
+    assert re.search(r"done\s*<br\s*/?>\s*second line", body) is not None
 
 
 def test_draft_is_in_the_original_conversation(
@@ -125,9 +140,11 @@ def test_source_read_state_is_unchanged(client: GraphClient, source_id: str) -> 
     source = writer.get_reply_source(source_id)
     draft = NewReplyDraft(
         source_id=source_id,
-        mode=ReplyMode.REPLY,
+        mode=ReplyMode.REPLY_ALL,
         body="read-state check",
-        recipients=resolve_reply_recipients(source, ReplyMode.REPLY, writer.get_own_addresses()),
+        recipients=resolve_reply_recipients(
+            source, ReplyMode.REPLY_ALL, writer.get_own_addresses()
+        ),
     )
     draft_id = writer.create_reply(draft).id
     try:

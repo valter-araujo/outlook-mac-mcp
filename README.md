@@ -561,8 +561,10 @@ To answer an existing email, use the reply pair instead: a draft made with
    original and exactly the recipients the preview showed. Nothing is sent.
 
 Your text is sent to Graph as the reply's `comment`, so the original's HTML is never
-rebuilt by this server. Whether Graph escapes markup in that text is checked by a live
-test, `tests/infrastructure/graph/test_reply_draft_live.py`.
+rebuilt by this server. Graph inserts `comment` as HTML (confirmed live), so the server
+escapes your text and turns its line breaks into `<br>` first: markup typed or pasted
+into a reply shows up as text, never as a live link or image. The live check is
+`tests/infrastructure/graph/test_reply_draft_live.py`.
 
 #### Deleting a draft
 
