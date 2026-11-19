@@ -30,7 +30,12 @@ therefore unsupported by the official add-in and the Microsoft 365 connector.
   uses, but the code requests from MSAL only what the current version needs.
   v1: `Mail.Read`, `Calendars.Read`, `Contacts.Read`, `offline_access`, `User.Read`.
   Write scopes enter the code only with a new version, new consent, and a config flag
-  that is off by default.
+  that is off by default. Mail drafts add `Mail.ReadWrite`, which is broader than the
+  calls made with it: `POST /me/messages` (new draft) and `POST
+  /me/messages/{id}/createReply` or `/createReplyAll` (reply draft), plus `DELETE
+  /me/messages/{id}` for a message verified to be an unsent draft in Drafts, behind its
+  own flag. No other mail write call may be added, no `permanentDelete`, and no send
+  call ever.
 - Every input validated with pydantic (type, length, email format, dates) before it
   becomes a query. Search parameters are escaped and parameterized; never concatenated
   into `$filter` or `$search`.
@@ -123,7 +128,10 @@ therefore unsupported by the official add-in and the Microsoft 365 connector.
   and upcoming events; contact search.
 - v2: create and update calendar events — behind a flag, off by default; delete
   calendar events — behind a second flag, off by default even when the first
-  one is on; mark as read — not yet built.
+  one is on; save email drafts, new or as a reply/reply all in the original
+  conversation (never send) — behind a third flag, off by default, requesting
+  `Mail.ReadWrite`; delete drafts in the Drafts folder — behind a fourth flag on top of
+  the third; mark as read — not yet built.
 - v3: send email — behind a flag, explicit confirmation per call.
 - Do not anticipate future versions or leave "for later" hooks.
 

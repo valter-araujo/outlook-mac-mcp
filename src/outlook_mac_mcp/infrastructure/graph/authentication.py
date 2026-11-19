@@ -19,6 +19,7 @@ CONSUMERS_AUTHORITY = "https://login.microsoftonline.com/consumers"
 # token that keeps this cache useful between runs.
 READ_SCOPES: tuple[str, ...] = ("Mail.Read", "Calendars.Read", "Contacts.Read", "User.Read")
 CALENDAR_WRITE_SCOPE = "Calendars.ReadWrite"
+MAIL_DRAFT_SCOPE = "Mail.ReadWrite"
 
 SIGN_IN_REQUIRED_MESSAGE = "no usable cached credential; complete the device-code sign-in first"
 
@@ -104,15 +105,23 @@ class DeviceCodeAuthenticator:
 
 
 def required_scopes(settings: Settings) -> tuple[str, ...]:
-    """The write scope enters the request only behind the flag.
+    """Each write scope enters the request only behind its own flag.
 
     A cached token carries the scopes it was issued for, so widening the set makes the
     silent acquire fail and forces a fresh sign-in and consent; that is the intended
     cost of turning writes on, not a bug to smooth over.
+
+    Mail.ReadWrite is the narrowest scope Graph offers for saving a draft, but it is
+    broader than the one thing the code does with it (POST /me/messages): the token could
+    also change or delete messages. The restraint lives in the code, which has no such
+    call, and in the flag being off by default.
     """
+    scopes = READ_SCOPES
     if settings.calendar_write_enabled:
-        return (*READ_SCOPES, CALENDAR_WRITE_SCOPE)
-    return READ_SCOPES
+        scopes = (*scopes, CALENDAR_WRITE_SCOPE)
+    if settings.mail_draft_enabled:
+        scopes = (*scopes, MAIL_DRAFT_SCOPE)
+    return scopes
 
 
 def _raise_for_error(response: Mapping[str, Any]) -> None:

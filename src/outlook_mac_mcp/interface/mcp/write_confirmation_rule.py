@@ -1,5 +1,5 @@
 def write_confirmation_rule(preview_tool: str) -> str:
-    """The untrusted-content warning shared by every calendar-write tool pair.
+    """The untrusted-content warning shared by every write tool pair.
 
     Named per preview tool so each pair's description tells the caller exactly which
     preview call to get confirmation before, rather than pointing at another pair's.

@@ -14,6 +14,7 @@ from outlook_mac_mcp.application.search_contacts import SearchContacts
 from outlook_mac_mcp.application.search_emails import SearchEmails
 from outlook_mac_mcp.application.top_senders import TopSenders
 from outlook_mac_mcp.interface.mcp.calendar_write_use_cases import CalendarWriteUseCases
+from outlook_mac_mcp.interface.mcp.mail_draft_use_cases import MailDraftUseCases
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,3 +41,5 @@ class UseCases:
     # None when the write flag is off: the tools then do not exist, rather than exist
     # and fail, so a client cannot even be tempted to call them.
     calendar_write: CalendarWriteUseCases | None = None
+    # Same rule, own flag: None means the draft tools do not exist at all.
+    mail_draft: MailDraftUseCases | None = None
