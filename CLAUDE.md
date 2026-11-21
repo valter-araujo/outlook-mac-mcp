@@ -32,9 +32,11 @@ therefore unsupported by the official add-in and the Microsoft 365 connector.
   Write scopes enter the code only with a new version, new consent, and a config flag
   that is off by default. Mail drafts add `Mail.ReadWrite`, which is broader than the
   calls made with it: `POST /me/messages` (new draft) and `POST
-  /me/messages/{id}/createReply` or `/createReplyAll` (reply draft), plus `DELETE
-  /me/messages/{id}` for a message verified to be an unsent draft in Drafts, behind its
-  own flag. No other mail write call may be added, no `permanentDelete`, and no send
+  /me/messages/{id}/createReply` or `/createReplyAll` (reply draft), plus `POST
+  /me/messages/{id}/move` to `deleteditems` for a message verified to be an unsent
+  draft in Drafts, behind its own flag. No other mail write call may be added: no HTTP
+  `DELETE` on a message (on a personal account it bypasses Deleted Items, confirmed
+  live 2026-11-19), no move to any other folder, no `permanentDelete`, and no send
   call ever.
 - Every input validated with pydantic (type, length, email format, dates) before it
   becomes a query. Search parameters are escaped and parameterized; never concatenated

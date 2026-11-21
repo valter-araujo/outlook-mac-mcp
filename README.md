@@ -514,9 +514,9 @@ for saving a draft, but it is broader than what this server does with it: the to
 could also change or delete any message in the mailbox. The server never does: its
 mail write calls are `POST /me/messages` (a new draft) and `createReply`/`createReplyAll`
 (a reply draft), all of which save an unsent message, plus, only behind a second flag,
-`DELETE` on a message verified to be an unsent draft in Drafts. There is no send or
-update call for mail anywhere. The restraint is in the code and in the flags being off
-by default, not in the scope. Revoke the consent at
+a move to Deleted Items of a message verified to be an unsent draft in Drafts. There is
+no send or update call for mail anywhere. The restraint is in the code and in the flags
+being off by default, not in the scope. Revoke the consent at
 <https://account.live.com/consent/Manage> if you stop using the feature.
 
 Because the scope set changes, the cached token no longer satisfies it until you sign
@@ -571,7 +571,10 @@ into a reply shows up as text, never as a live link or image. The live check is
 With `OUTLOOK_MCP_ENABLE_MAIL_DRAFT_DELETE=true` as well, `preview_draft_deletion` and
 `delete_draft` clean up a draft saved by mistake. Only an unsent message in the Drafts
 folder is accepted, checked at preview and again right before the delete. The draft
-moves to Deleted Items, where you can recover it. No extra scope or sign-in is needed.
+is moved to Deleted Items, where you can see and recover it. No extra scope or sign-in
+is needed. It is an explicit move, not Graph's `DELETE`: a live check on a personal
+Outlook.com account found that `DELETE` skips Deleted Items, leaving nothing the user
+can see.
 
 Sending is deliberately manual: you review the draft in Outlook and press send yourself.
 That is the defence against an email written to talk a model into mailing someone — the

@@ -1,15 +1,17 @@
-r"""Live check of where GraphDraftDeleter's DELETE sends a draft.
+r"""Live check that a draft deleted through GraphDraftDeleter lands in Deleted Items.
 
-The README and GraphDraftDeleter promise that a deleted draft lands in Deleted Items and
-stays recoverable. Graph documents that for work accounts; a run on 2026-11-19 against a
-personal account found fewer test drafts in Deleted Items than were deleted, so this
-checks the promise directly.
+The README and GraphDraftDeleter promise that a deleted draft stays visible and
+recoverable in Deleted Items, so this checks the promise directly.
 
 This WRITES to the mailbox: it saves one draft addressed to an example.com address
 (never sent), deletes it through GraphDraftDeleter, and looks for its unique subject in
 Deleted Items. If found, the draft is left there for you to empty.
 
-Not yet measured.
+Measured 2026-11-19 against a personal Outlook.com mailbox, while the deleter still sent
+an HTTP DELETE: FAILED. The draft was in neither Deleted Items, Drafts nor a
+mailbox-wide subject search; listing Recoverable Items returned 503, so where it went
+is unconfirmed. That led to the deleter moving the draft to `deleteditems` instead.
+Re-run after that change and record the outcome below.
 
 Run with:
     OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true \

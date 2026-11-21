@@ -25,8 +25,15 @@ Measured 2026-11-19 against a personal Outlook.com mailbox, before the escaping 
     source read state    passed: unchanged (source with a human sender, one other
                          recipient; the Q&A-reported flip did not occur)
 
-The failure led to to_comment_html in reply_draft_payload. Re-run after that fix and
-record the outcome below.
+The failure led to to_comment_html in reply_draft_payload. Re-run 2026-11-19 after
+that fix, same mailbox, Inbox source from a human sender:
+
+    escaping             passed: markup saved as escaped text, line break kept
+    conversation         passed
+    recipients           passed
+    source read state    passed
+
+Cleanup goes through GraphDraftDeleter, so the test drafts land in Deleted Items.
 
 Use a source the user did not send themselves: the read-state check replies all, but a
 message the user sent to nobody else would leave no recipient.
@@ -50,6 +57,7 @@ from outlook_mac_mcp.domain.reply_mode import ReplyMode
 from outlook_mac_mcp.domain.reply_recipients import resolve_reply_recipients
 from outlook_mac_mcp.infrastructure.graph.authentication import DeviceCodeAuthenticator
 from outlook_mac_mcp.infrastructure.graph.client import GraphClient
+from outlook_mac_mcp.infrastructure.graph.draft_deleter import GraphDraftDeleter
 from outlook_mac_mcp.infrastructure.graph.reply_draft_writer import GraphReplyDraftWriter
 from outlook_mac_mcp.infrastructure.settings import load_settings
 
@@ -89,7 +97,7 @@ def saved(client: GraphClient, source_id: str) -> Iterator[tuple[str, str, NewRe
     try:
         yield draft_id, marker, draft
     finally:
-        client.delete(f"/me/messages/{quote(draft_id, safe='')}")
+        GraphDraftDeleter(client).delete(draft_id)
 
 
 def fetch(client: GraphClient, message_id: str) -> Mapping[str, Any]:
@@ -150,4 +158,4 @@ def test_source_read_state_is_unchanged(client: GraphClient, source_id: str) -> 
     try:
         assert fetch(client, source_id)["isRead"] == was_read
     finally:
-        client.delete(f"/me/messages/{quote(draft_id, safe='')}")
+        GraphDraftDeleter(client).delete(draft_id)
