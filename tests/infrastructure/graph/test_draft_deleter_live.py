@@ -11,7 +11,8 @@ Measured 2026-11-19 against a personal Outlook.com mailbox, while the deleter st
 an HTTP DELETE: FAILED. The draft was in neither Deleted Items, Drafts nor a
 mailbox-wide subject search; listing Recoverable Items returned 503, so where it went
 is unconfirmed. That led to the deleter moving the draft to `deleteditems` instead.
-Re-run after that change and record the outcome below.
+Re-run 2026-11-21 after the move change, same mailbox: PASSED, the draft was found in
+Deleted Items.
 
 Run with:
     OUTLOOK_MCP_ENABLE_MAIL_DRAFT=true \
