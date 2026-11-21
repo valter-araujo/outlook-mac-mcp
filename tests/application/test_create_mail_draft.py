@@ -24,7 +24,9 @@ class FailingMailDraftWriter:
 
 def add_preview(store: DraftStore[MailDraftPreview]) -> str:
     return store.add(
-        lambda token: MailDraftPreview(token=token, summary="summary", new_draft=A_DRAFT)
+        lambda token: MailDraftPreview(
+            token=token, summary="summary", warnings=(), new_draft=A_DRAFT
+        )
     ).token
 
 

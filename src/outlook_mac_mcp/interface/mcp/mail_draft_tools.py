@@ -23,10 +23,10 @@ PREVIEW_DRAFT_TOOL = "preview_draft"
 CREATE_DRAFT_TOOL = "create_draft"
 CONFIRMATION_RULE = write_confirmation_rule(PREVIEW_DRAFT_TOOL)
 PREVIEW_DRAFT_DESCRIPTION = (
-    "Prepare an email draft without saving it. Validates the details and returns a token "
-    "and a one-line summary. Nothing is written to the mailbox by this tool. Show the "
-    "summary to the user and, only once they agree, pass the token to create_draft. "
-    + CONFIRMATION_RULE
+    "Prepare an email draft without saving it. Validates the details and returns a token, "
+    "a one-line summary and any warnings, such as each link in the body. Nothing is written "
+    "to the mailbox by this tool. Show the summary and EVERY warning to the user and, only "
+    "once they agree, pass the token to create_draft. " + CONFIRMATION_RULE
 )
 CREATE_DRAFT_DESCRIPTION = (
     "Save the draft previewed under `token` in the user's Drafts folder. This is a REAL "

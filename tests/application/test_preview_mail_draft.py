@@ -54,3 +54,21 @@ def test_truncates_a_long_body_with_an_explicit_character_count() -> None:
 
     assert f"{len(body)} characters total" in summary
     assert body not in summary
+
+
+def test_warns_about_each_link_in_the_body() -> None:
+    draft = NewMailDraft(
+        subject="Hello",
+        body="See https://example.com/a?id=1. Also www.example.org/b",
+        to=(ANA,),
+    )
+
+    warnings = preview(draft).warnings
+
+    assert len(warnings) == 2
+    assert "https://example.com/a?id=1;" in warnings[0]
+    assert "www.example.org/b;" in warnings[1]
+
+
+def test_has_no_warnings_without_links() -> None:
+    assert preview(NewMailDraft(subject="Hello", body="Hi.", to=(ANA,))).warnings == ()

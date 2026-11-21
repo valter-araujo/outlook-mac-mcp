@@ -556,6 +556,10 @@ To answer an existing email, use the reply pair instead: a draft made with
      (`noreply@…`, a bulk-mail host such as `someone@email.example.com`) or when
      Reply-To redirects the reply away from the sender. It is a heuristic and never
      blocks anything.
+   - Each web address in your text is listed as a warning too, in both `preview_draft`
+     and `preview_reply_draft`. Escaping stops markup, but a bare URL stays a working
+     link and can carry data in its query string to the site it names, so check that
+     every link is one you meant to include.
 2. `create_reply_draft` takes only that token. One `createReply`/`createReplyAll` call
    saves the draft in the original conversation, with your text above the quoted
    original and exactly the recipients the preview showed. Nothing is sent.

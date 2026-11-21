@@ -19,7 +19,7 @@ class ReplyDraftPreviewView(BaseModel):
     cc: tuple[str, ...] = Field(description="The final Cc line, as it will be saved.")
     warnings: tuple[str, ...] = Field(
         description="Things the user should know before agreeing, such as a no-reply "
-        "recipient. Show every one of them to the user."
+        "recipient or a link in the body. Show every one of them to the user."
     )
 
     @classmethod

@@ -102,3 +102,13 @@ def test_refuses_an_unknown_message() -> None:
 def test_rejects_an_empty_email_id() -> None:
     with pytest.raises(InvalidRequestError, match="email_id"):
         ReplyDraftRequest(email_id="", mode=ReplyMode.REPLY, body="Hi")
+
+
+def test_warns_about_a_link_in_the_reply_body() -> None:
+    linked = ReplyDraftRequest(
+        email_id="AAMk1", mode=ReplyMode.REPLY_ALL, body="Slides: https://example.com/s?u=1"
+    )
+
+    preview = preview_with(a_writer()).execute(linked)
+
+    assert any("https://example.com/s?u=1" in warning for warning in preview.warnings)
