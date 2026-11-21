@@ -36,6 +36,10 @@ class GraphRequestError(GraphError):
         self.error_code = error_code
 
 
+class GraphConnectionError(GraphError):
+    """Graph could not be reached or did not answer in time (DNS, TLS, reset, timeout)."""
+
+
 class GraphResponseError(GraphError):
     """Graph answered successfully but the payload was not shaped as expected."""
 
