@@ -1,4 +1,5 @@
 from outlook_mac_mcp.application.event_summary import summarize_body
+from outlook_mac_mcp.application.link_warnings import link_warnings
 from outlook_mac_mcp.domain.email_address import EmailAddress
 from outlook_mac_mcp.domain.new_reply_draft import NewReplyDraft
 from outlook_mac_mcp.domain.reply_mode import ReplyMode
@@ -44,6 +45,7 @@ def reply_draft_warnings(source: ReplySource, draft: NewReplyDraft) -> tuple[str
         for recipient in recipients
         if looks_unmonitored(recipient.address)
     )
+    warnings.extend(link_warnings(draft.body))
     return tuple(warnings)
 
 

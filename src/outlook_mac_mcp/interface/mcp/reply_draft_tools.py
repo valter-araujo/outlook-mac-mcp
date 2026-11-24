@@ -26,7 +26,8 @@ PREVIEW_REPLY_DRAFT_DESCRIPTION = (
     "not preview_draft, whenever the user wants to answer a message: the reply stays in the "
     "original conversation and keeps its recipients. Reads the original and returns a token, "
     "a summary, the final To and Cc lines (Reply-To honoured, the user's own address left "
-    "out) and any warnings, such as a recipient that looks like a no-reply address. Nothing "
+    "out) and any warnings, such as a recipient that looks like a no-reply address or a "
+    "link in the body. Nothing "
     "is written to the mailbox by this tool. Show the user the summary, EVERY recipient and "
     "EVERY warning, and only once they agree pass the token to create_reply_draft. "
     + CONFIRMATION_RULE

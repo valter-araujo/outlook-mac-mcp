@@ -11,6 +11,7 @@ from outlook_mac_mcp.infrastructure.graph.client import (
     GraphClient,
 )
 from outlook_mac_mcp.infrastructure.graph.errors import (
+    GraphConnectionError,
     GraphRequestError,
     GraphResponseError,
     UnsupportedHostError,
@@ -364,3 +365,21 @@ def test_raises_with_the_error_code_when_a_delete_is_rejected(client: GraphClien
 
     with pytest.raises(GraphRequestError, match="ErrorItemNotFound"):
         client.delete(AN_EVENT_PATH)
+
+
+@respx.mock
+def test_turns_a_timeout_into_a_graph_connection_error(client: GraphClient) -> None:
+    respx.get(f"{GRAPH_BASE_URL}/me").mock(side_effect=httpx.ReadTimeout("timed out"))
+
+    with pytest.raises(GraphConnectionError, match="ReadTimeout"):
+        client.get("/me", {})
+
+
+@respx.mock
+def test_turns_a_failed_delete_connection_into_a_graph_connection_error(
+    client: GraphClient,
+) -> None:
+    respx.delete(f"{GRAPH_BASE_URL}/me/events/1").mock(side_effect=httpx.ConnectError("refused"))
+
+    with pytest.raises(GraphConnectionError, match="ConnectError"):
+        client.delete("/me/events/1")

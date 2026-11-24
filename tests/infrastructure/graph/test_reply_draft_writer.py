@@ -239,3 +239,44 @@ def test_reports_a_source_deleted_since_the_preview_as_not_found(
 
     with pytest.raises(EmailNotFoundError):
         writer.create_reply(A_REPLY_ALL)
+
+
+@respx.mock
+def test_escapes_markup_in_the_comment_because_graph_reads_it_as_html(
+    writer: GraphReplyDraftWriter,
+) -> None:
+    """Regression: the live check found an unescaped <b> saved as a live tag."""
+    route = respx.post(f"{MESSAGE_URL}/createReplyAll").mock(
+        return_value=httpx.Response(201, json={"id": "AAMkREPLY"})
+    )
+    draft = NewReplyDraft(
+        source_id="AAMk/1",
+        mode=ReplyMode.REPLY_ALL,
+        body='<img src="https://tracker.example.com/p.gif"> & <b>hi</b>',
+        recipients=A_REPLY_ALL.recipients,
+    )
+
+    writer.create_reply(draft)
+
+    assert json.loads(route.calls.last.request.content)["comment"] == (
+        "&lt;img src=&quot;https://tracker.example.com/p.gif&quot;&gt; &amp; &lt;b&gt;hi&lt;/b&gt;"
+    )
+
+
+@respx.mock
+def test_keeps_line_breaks_in_the_comment(writer: GraphReplyDraftWriter) -> None:
+    route = respx.post(f"{MESSAGE_URL}/createReplyAll").mock(
+        return_value=httpx.Response(201, json={"id": "AAMkREPLY"})
+    )
+    draft = NewReplyDraft(
+        source_id="AAMk/1",
+        mode=ReplyMode.REPLY_ALL,
+        body="Hi Ana,\r\nTuesday works.\nBest",
+        recipients=A_REPLY_ALL.recipients,
+    )
+
+    writer.create_reply(draft)
+
+    assert json.loads(route.calls.last.request.content)["comment"] == (
+        "Hi Ana,<br>Tuesday works.<br>Best"
+    )

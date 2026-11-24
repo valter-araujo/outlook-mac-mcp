@@ -4,6 +4,7 @@ from typing import Any, Protocol
 import httpx
 
 from outlook_mac_mcp.infrastructure.graph.errors import (
+    GraphConnectionError,
     GraphRequestError,
     GraphResponseError,
     UnsupportedHostError,
@@ -54,7 +55,7 @@ class GraphClient:
         )
         _reject_foreign_host(request.url)
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
-        return _read_payload(self._http_client.send(request))
+        return _read_payload(self._send(request))
 
     def post(
         self,
@@ -68,7 +69,7 @@ class GraphClient:
         )
         _reject_foreign_host(request.url)
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
-        return _read_payload(self._http_client.send(request))
+        return _read_payload(self._send(request))
 
     def patch(
         self,
@@ -84,7 +85,7 @@ class GraphClient:
         )
         _reject_foreign_host(request.url)
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
-        return _read_payload(self._http_client.send(request))
+        return _read_payload(self._send(request))
 
     def delete(self, path: str) -> None:
         """Delete the resource at `path`. Graph answers with no body, so nothing is
@@ -93,7 +94,7 @@ class GraphClient:
         request = self._http_client.build_request("DELETE", _relative_path(path))
         _reject_foreign_host(request.url)
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
-        response = self._http_client.send(request)
+        response = self._send(request)
         if not response.is_success:
             error_code = _error_code(response)
             raise GraphRequestError(
@@ -112,10 +113,23 @@ class GraphClient:
         _reject_foreign_host(url)
         request = self._http_client.build_request("GET", url)
         request.headers["Authorization"] = f"Bearer {self._token_provider.get_access_token()}"
-        return _read_payload(self._http_client.send(request))
+        return _read_payload(self._send(request))
 
     def close(self) -> None:
         self._http_client.close()
+
+    def _send(self, request: httpx.Request) -> httpx.Response:
+        """Send, turning a transport failure into a GraphError the MCP boundary handles.
+
+        A live run on 2026-11-19 saw a raw httpx.ReadTimeout escape every caller. Only
+        the exception type is reported: its text can echo the request URL.
+        """
+        try:
+            return self._http_client.send(request)
+        except httpx.TransportError as error:
+            raise GraphConnectionError(
+                f"could not reach Microsoft Graph ({type(error).__name__}); try again"
+            ) from error
 
 
 def _build_http_client() -> httpx.Client:

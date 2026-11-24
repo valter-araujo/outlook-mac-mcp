@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -86,20 +87,23 @@ def test_reports_a_missing_message_as_not_found(deleter: GraphDraftDeleter) -> N
 
 
 @respx.mock
-def test_delete_sends_a_plain_delete_never_permanent_delete(
+def test_delete_moves_the_draft_to_deleted_items_never_http_delete(
     deleter: GraphDraftDeleter,
 ) -> None:
-    route = respx.delete(MESSAGE_URL).mock(return_value=httpx.Response(204))
+    """A plain DELETE skipped Deleted Items on a personal account (live, 2026-11-19)."""
+    route = respx.post(f"{MESSAGE_URL}/move").mock(
+        return_value=httpx.Response(201, json={"id": "AAMkMOVED"})
+    )
 
     deleter.delete("AAMkDRAFT")
 
-    assert route.call_count == 1
-    assert [call.request.method for call in respx.calls] == ["DELETE"]
+    assert json.loads(route.calls.last.request.content) == {"destinationId": "deleteditems"}
+    assert [call.request.method for call in respx.calls] == ["POST"]
 
 
 @respx.mock
 def test_delete_reports_a_missing_message_as_not_found(deleter: GraphDraftDeleter) -> None:
-    respx.delete(MESSAGE_URL).mock(
+    respx.post(f"{MESSAGE_URL}/move").mock(
         return_value=httpx.Response(404, json={"error": {"code": "ErrorItemNotFound"}})
     )
 

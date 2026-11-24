@@ -12,7 +12,11 @@ class MailDraftPreviewView(BaseModel):
         description="Opaque, single-use handle for create_draft. Valid in this session only."
     )
     summary: str = Field(description="One line describing the draft exactly as it would be saved.")
+    warnings: tuple[str, ...] = Field(
+        description="Things the user should know before agreeing, such as each link in "
+        "the body. Show every one of them to the user."
+    )
 
     @classmethod
     def from_preview(cls, preview: MailDraftPreview) -> "MailDraftPreviewView":
-        return cls(token=preview.token, summary=preview.summary)
+        return cls(token=preview.token, summary=preview.summary, warnings=preview.warnings)

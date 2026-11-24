@@ -20,6 +20,7 @@ from outlook_mac_mcp.infrastructure.graph.message_path import (
 )
 
 DRAFTS_FOLDER_PATH = "/me/mailFolders/drafts"
+DELETED_ITEMS_FOLDER = "deleteditems"
 DRAFT_FIELDS = (
     "id",
     "subject",
@@ -34,9 +35,11 @@ class GraphDraftDeleter:
     """Deletes drafts, and only drafts that sit in the Drafts folder.
 
     Satisfies the DraftDeleter port structurally; wired only when both the mail draft
-    flag and the draft delete flag are on. Graph's DELETE on a message moves it to
-    Deleted Items rather than purging it, so a mistaken deletion stays recoverable in
-    Outlook; permanentDelete is never called.
+    flag and the draft delete flag are on. "Delete" is a move to Deleted Items, never
+    an HTTP DELETE and never permanentDelete: a live check on 2026-11-19 found that
+    Graph's DELETE on a personal Outlook.com account does not put the message in
+    Deleted Items (it was found nowhere the user can see), so only an explicit move
+    keeps a mistaken deletion visible and recoverable in Outlook.
 
     Both isDraft and the parent folder are checked: isDraft alone would accept an unsent
     message the user filed elsewhere, and the folder alone would accept a sent message
@@ -62,7 +65,9 @@ class GraphDraftDeleter:
 
     def delete(self, email_id: str) -> None:
         try:
-            self._client.delete(message_path(email_id))
+            self._client.post(
+                f"{message_path(email_id)}/move", {"destinationId": DELETED_ITEMS_FOLDER}
+            )
         except GraphRequestError as error:
             raise_message_lookup_error(error, email_id)
 

@@ -514,9 +514,9 @@ for saving a draft, but it is broader than what this server does with it: the to
 could also change or delete any message in the mailbox. The server never does: its
 mail write calls are `POST /me/messages` (a new draft) and `createReply`/`createReplyAll`
 (a reply draft), all of which save an unsent message, plus, only behind a second flag,
-`DELETE` on a message verified to be an unsent draft in Drafts. There is no send or
-update call for mail anywhere. The restraint is in the code and in the flags being off
-by default, not in the scope. Revoke the consent at
+a move to Deleted Items of a message verified to be an unsent draft in Drafts. There is
+no send or update call for mail anywhere. The restraint is in the code and in the flags
+being off by default, not in the scope. Revoke the consent at
 <https://account.live.com/consent/Manage> if you stop using the feature.
 
 Because the scope set changes, the cached token no longer satisfies it until you sign
@@ -556,20 +556,29 @@ To answer an existing email, use the reply pair instead: a draft made with
      (`noreply@…`, a bulk-mail host such as `someone@email.example.com`) or when
      Reply-To redirects the reply away from the sender. It is a heuristic and never
      blocks anything.
+   - Each web address in your text is listed as a warning too, in both `preview_draft`
+     and `preview_reply_draft`. Escaping stops markup, but a bare URL stays a working
+     link and can carry data in its query string to the site it names, so check that
+     every link is one you meant to include.
 2. `create_reply_draft` takes only that token. One `createReply`/`createReplyAll` call
    saves the draft in the original conversation, with your text above the quoted
    original and exactly the recipients the preview showed. Nothing is sent.
 
 Your text is sent to Graph as the reply's `comment`, so the original's HTML is never
-rebuilt by this server. Whether Graph escapes markup in that text is checked by a live
-test, `tests/infrastructure/graph/test_reply_draft_live.py`.
+rebuilt by this server. Graph inserts `comment` as HTML (confirmed live), so the server
+escapes your text and turns its line breaks into `<br>` first: markup typed or pasted
+into a reply shows up as text, never as a live link or image. The live check is
+`tests/infrastructure/graph/test_reply_draft_live.py`.
 
 #### Deleting a draft
 
 With `OUTLOOK_MCP_ENABLE_MAIL_DRAFT_DELETE=true` as well, `preview_draft_deletion` and
 `delete_draft` clean up a draft saved by mistake. Only an unsent message in the Drafts
 folder is accepted, checked at preview and again right before the delete. The draft
-moves to Deleted Items, where you can recover it. No extra scope or sign-in is needed.
+is moved to Deleted Items, where you can see and recover it. No extra scope or sign-in
+is needed. It is an explicit move, not Graph's `DELETE`: a live check on a personal
+Outlook.com account found that `DELETE` skips Deleted Items, leaving nothing the user
+can see.
 
 Sending is deliberately manual: you review the draft in Outlook and press send yourself.
 That is the defence against an email written to talk a model into mailing someone — the

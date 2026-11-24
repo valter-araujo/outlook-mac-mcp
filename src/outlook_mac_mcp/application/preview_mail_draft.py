@@ -1,4 +1,5 @@
 from outlook_mac_mcp.application.draft_store import DraftStore
+from outlook_mac_mcp.application.link_warnings import link_warnings
 from outlook_mac_mcp.application.mail_draft_preview import MailDraftPreview
 from outlook_mac_mcp.application.mail_draft_summary import describe_mail_draft
 from outlook_mac_mcp.domain.new_mail_draft import NewMailDraft
@@ -17,6 +18,9 @@ class PreviewMailDraft:
     def execute(self, new_draft: NewMailDraft) -> MailDraftPreview:
         return self._draft_store.add(
             lambda token: MailDraftPreview(
-                token=token, summary=describe_mail_draft(new_draft), new_draft=new_draft
+                token=token,
+                summary=describe_mail_draft(new_draft),
+                warnings=link_warnings(new_draft.body),
+                new_draft=new_draft,
             )
         )

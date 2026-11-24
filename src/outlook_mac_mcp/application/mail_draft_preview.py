@@ -13,4 +13,5 @@ class MailDraftPreview:
 
     token: str
     summary: str
+    warnings: tuple[str, ...]
     new_draft: NewMailDraft
